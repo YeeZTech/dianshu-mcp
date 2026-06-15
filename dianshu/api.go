@@ -1,0 +1,183 @@
+package dianshu
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/sirupsen/logrus"
+)
+
+const (
+	baseAPIURL = "https://api.dianshudata.com"
+	userAgent  = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+)
+
+// GetDefaultCookiePath 获取默认 cookies 文件路径
+func GetDefaultCookiePath() string {
+	return "cookies.json"
+}
+
+// APIClient API 客户端
+type APIClient struct {
+	httpClient *http.Client
+	cookies    map[string]string // 所有 cookies name=value
+}
+
+// NewAPIClient 创建 API 客户端
+func NewAPIClient(cookies map[string]string) *APIClient {
+	return &APIClient{
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+		cookies: cookies,
+	}
+}
+
+// GetUserInfo 获取用户信息（使用 cookies map）
+func GetUserInfo(ctx context.Context, cookies map[string]string) (*UserInfo, error) {
+	client := NewAPIClient(cookies)
+	return client.GetUserInfo(ctx)
+}
+
+func (c *APIClient) GetUserInfo(ctx context.Context) (*UserInfo, error) {
+	resp, err := c.doRequest(ctx, "POST", "/login/getUserInfo", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		ResultCode int       `json:"resultCode"`
+		ResultDesc string    `json:"resultDesc"`
+		Data       *UserInfo `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("解析用户信息失败: %w", err)
+	}
+
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("获取用户信息失败: %s", result.ResultDesc)
+	}
+
+	return result.Data, nil
+}
+
+// QueryOrders 查询订单统计
+func (c *APIClient) QueryOrders(ctx context.Context, orderType int, orderCode string) (*OrderQueryData, error) {
+	reqBody := map[string]interface{}{
+		"orderType": orderType,
+		"orderCode": orderCode,
+	}
+
+	resp, err := c.doRequest(ctx, "POST", "/unused/order/query", reqBody)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	logrus.Debugf("查询订单响应: %s", string(body))
+
+	var result struct {
+		ResultCode int             `json:"resultCode"`
+		ResultDesc string          `json:"resultDesc"`
+		Data       *OrderQueryData `json:"data"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析订单数据失败: %w", err)
+	}
+
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("查询订单失败: %s", result.ResultDesc)
+	}
+
+	return result.Data, nil
+}
+
+// ListTasks 获取任务/订单列表
+func (c *APIClient) ListTasks(ctx context.Context, pageNo, pageSize int) ([]TaskItem, error) {
+	reqBody := map[string]interface{}{
+		"pageNo":   pageNo,
+		"pageSize": pageSize,
+	}
+
+	resp, err := c.doRequest(ctx, "POST", "/system/task/taskList", reqBody)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	var result TaskListResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析任务列表失败: %w", err)
+	}
+
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("查询任务列表失败: %s", result.ResultDesc)
+	}
+
+	return result.Data, nil
+}
+
+func (c *APIClient) doRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
+	var reqBody io.Reader
+	if body != nil {
+		jsonData, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("序列化请求体失败: %w", err)
+		}
+		reqBody = bytes.NewReader(jsonData)
+	}
+
+	url := baseAPIURL + path
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Origin", "https://dianshudata.com")
+	req.Header.Set("Referer", "https://dianshudata.com/")
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+
+	// 添加认证 token
+	if len(c.cookies) > 0 {
+		// 前端认证方式：token 放在请求头 "token" 中
+		if token, ok := c.cookies["token"]; ok && token != "" {
+			req.Header.Set("token", token)
+		}
+
+		// 同时携带其他 cookies（部分接口可能需要）
+		var cookieParts []string
+		for name, value := range c.cookies {
+			if name != "token" {
+				cookieParts = append(cookieParts, name+"="+value)
+			}
+		}
+		if len(cookieParts) > 0 {
+			req.Header.Set("Cookie", strings.Join(cookieParts, "; "))
+		}
+	}
+
+	logrus.Debugf("请求 %s %s", method, url)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求失败: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	return resp, nil
+}

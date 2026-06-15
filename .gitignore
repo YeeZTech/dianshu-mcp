@@ -1,0 +1,17 @@
+# Build output
+dianshu-mcp
+dianshu-mcp.exe
+
+# Runtime data
+cookies.json
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
