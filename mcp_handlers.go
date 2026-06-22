@@ -99,3 +99,43 @@ func (s *AppServer) handleListOrders(ctx context.Context, args ListOrdersArgs) *
 	}
 	return result
 }
+
+// handleListDownloads 处理列出可下载数据产品
+func (s *AppServer) handleListDownloads(ctx context.Context) *MCPToolResult {
+	logrus.Info("MCP: 列出可下载数据产品")
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	result, err := s.dianshuService.ListDownloads(ctx)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{
+				Type: "text",
+				Text: "查询下载列表失败: " + err.Error(),
+			}},
+			IsError: true,
+		}
+	}
+	return result
+}
+
+// handleListPurchasedAPIs 处理列出已购买的 API 产品
+func (s *AppServer) handleListPurchasedAPIs(ctx context.Context) *MCPToolResult {
+	logrus.Info("MCP: 列出已购买的 API 产品")
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	result, err := s.dianshuService.ListPurchasedAPIs(ctx)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{
+				Type: "text",
+				Text: "查询 API 产品失败: " + err.Error(),
+			}},
+			IsError: true,
+		}
+	}
+	return result
+}

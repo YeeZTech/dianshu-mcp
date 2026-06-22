@@ -33,4 +33,3 @@ type OrderQueryRequest struct {
 	OrderType int    `json:"orderType"`
 	OrderCode string `json:"orderCode"`
 }
-
