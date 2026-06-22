@@ -17,7 +17,7 @@ dianshu-mcp/
 ├── main.go              # 入口，参数解析
 ├── app_server.go        # 应用服务容器
 ├── routes.go            # HTTP 路由 + MCP Streamable HTTP Handler
-├── mcp_server.go        # MCP 工具注册（4个工具）
+├── mcp_server.go        # MCP 工具注册（6个工具）
 ├── mcp_handlers.go      # MCP 工具处理函数
 ├── handlers_api.go      # REST API 处理函数
 ├── service.go           # 业务逻辑层
@@ -39,6 +39,8 @@ dianshu-mcp/
 | `get_login_qrcode` | 微信扫码登录（含等待扫码） | 无 |
 | `delete_cookies` | 清除登录态 | 无 |
 | `list_orders` | 查询订单/任务列表 | orderType(可选), orderCode(可选) |
+| `list_downloads` | 列出可下载数据产品及下载信息 | 无 |
+| `list_purchased_apis` | 列出已购买的 API 产品及调用信息 | 无 |
 
 ## 认证机制
 
@@ -49,6 +51,8 @@ dianshu-mcp/
 - `/dianshu` — 通用入口
 - `/dianshu-login` — 微信扫码登录管理
 - `/dianshu-order` — 订单查询
+- `/dianshu-download` — 数据产品下载
+- `/dianshu-api` — API 产品信息
 
 ## 技术栈
 

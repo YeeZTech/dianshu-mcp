@@ -127,6 +127,66 @@ func (c *APIClient) ListTasks(ctx context.Context, pageNo, pageSize int) ([]Task
 	return result.Data, nil
 }
 
+// GetTaskDetail 获取单个任务详情
+func (c *APIClient) GetTaskDetail(ctx context.Context, id int) (*TaskItem, error) {
+	reqBody := map[string]interface{}{
+		"id": id,
+	}
+
+	resp, err := c.doRequest(ctx, "POST", "/system/task/taskDetail", reqBody)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	var result struct {
+		ResultCode int       `json:"resultCode"`
+		ResultDesc string    `json:"resultDesc"`
+		Data       *TaskItem `json:"data"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析任务详情失败: %w", err)
+	}
+
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("查询任务详情失败: %s", result.ResultDesc)
+	}
+
+	return result.Data, nil
+}
+
+// ============ API 产品子网关 ============
+const dataAPIGateway = "https://data-api.dianshudata.com"
+
+// GetAPIDetail 获取 API 产品详情（使用 data-api 子网关）
+func (c *APIClient) GetAPIDetail(ctx context.Context, apiID int) (*APIDetail, error) {
+	reqBody := map[string]interface{}{
+		"apiId":   apiID,
+		"deleted": 0,
+	}
+
+	resp, err := c.doRequestToGateway(ctx, "POST", dataAPIGateway, "/api/detail", reqBody)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	var result APIDetailResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析 API 详情失败: %w", err)
+	}
+
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("查询 API 详情失败: %s", result.ResultDesc)
+	}
+
+	return result.Data, nil
+}
+
 func (c *APIClient) doRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader
 	if body != nil {
@@ -157,6 +217,60 @@ func (c *APIClient) doRequest(ctx context.Context, method, path string, body int
 		}
 
 		// 同时携带其他 cookies（部分接口可能需要）
+		var cookieParts []string
+		for name, value := range c.cookies {
+			if name != "token" {
+				cookieParts = append(cookieParts, name+"="+value)
+			}
+		}
+		if len(cookieParts) > 0 {
+			req.Header.Set("Cookie", strings.Join(cookieParts, "; "))
+		}
+	}
+
+	logrus.Debugf("请求 %s %s", method, url)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求失败: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	return resp, nil
+}
+
+// doRequestToGateway 向指定网关发送请求（支持多网关）
+func (c *APIClient) doRequestToGateway(ctx context.Context, method, gateway, path string, body interface{}) (*http.Response, error) {
+	var reqBody io.Reader
+	if body != nil {
+		jsonData, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("序列化请求体失败: %w", err)
+		}
+		reqBody = bytes.NewReader(jsonData)
+	}
+
+	url := gateway + path
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Origin", "https://dianshudata.com")
+	req.Header.Set("Referer", "https://dianshudata.com/")
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+
+	// 添加认证 token
+	if len(c.cookies) > 0 {
+		if token, ok := c.cookies["token"]; ok && token != "" {
+			req.Header.Set("token", token)
+		}
+
 		var cookieParts []string
 		for name, value := range c.cookies {
 			if name != "token" {

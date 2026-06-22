@@ -127,7 +127,39 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 		}),
 	)
 
-	logrus.Infof("Registered %d MCP tools", 4)
+	// 工具 5: 列出可下载的数据产品
+	mcp.AddTool(server,
+		&mcp.Tool{
+			Name:        "list_downloads",
+			Description: "列出已购买的典枢数据产品及下载信息",
+			Annotations: &mcp.ToolAnnotations{
+				Title:        "List Downloads",
+				ReadOnlyHint: true,
+			},
+		},
+		withPanicRecovery("list_downloads", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleListDownloads(ctx)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	// 工具 6: 列出已购买的 API 产品
+	mcp.AddTool(server,
+		&mcp.Tool{
+			Name:        "list_purchased_apis",
+			Description: "列出已购买的典枢 API 产品及调用信息",
+			Annotations: &mcp.ToolAnnotations{
+				Title:        "List Purchased APIs",
+				ReadOnlyHint: true,
+			},
+		},
+		withPanicRecovery("list_purchased_apis", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleListPurchasedAPIs(ctx)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	logrus.Infof("Registered %d MCP tools", 6)
 }
 
 // convertToMCPResult 将自定义 MCPToolResult 转换为官方 SDK 格式
