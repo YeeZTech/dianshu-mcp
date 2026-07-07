@@ -58,7 +58,7 @@ tail -f /tmp/dianshu-mcp.log    # 实时查看日志
 ### 重新编译并重启
 
 ```bash
-cd /Users/zytang/Documents/WorkSpace/dianshu-mcp
+cd dianshu-mcp
 pkill -f dianshu-mcp
 GOPROXY=https://goproxy.cn,direct go build -o dianshu-mcp .
 nohup ./dianshu-mcp -headless=false > /tmp/dianshu-mcp.log 2>&1 &
