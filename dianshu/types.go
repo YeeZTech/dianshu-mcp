@@ -2,12 +2,112 @@ package dianshu
 
 // API 响应相关的数据结构
 
-// UserInfo 用户基本信息（映射 /login/getUserInfo 响应）
+// UserInfo 用户信息（映射 /login/getUserInfo 响应）
 type UserInfo struct {
-	UserID   string `json:"userNo"`    // 用户编号
-	Nickname string `json:"userName"`  // 用户名
-	Avatar   string `json:"userImage"` // 头像
-	Phone    string `json:"mobile"`    // 手机号
+	ID                   int64   `json:"id"`                   // 用户 ID
+	Nickname             string  `json:"userName"`             // 昵称
+	CompanyID            int64   `json:"companyId"`            // 企业 ID
+	CompanyCode          string  `json:"companyCode"`          // 企业编码
+	CompanyName          string  `json:"companyName"`          // 企业名称
+	Logo                 string  `json:"logo"`                 // 企业 Logo
+	Phone                string  `json:"mobile"`               // 手机号
+	UserEmail            string  `json:"userEmail"`            // 邮箱
+	Role                 int     `json:"role"`                 // 角色
+	IsCertificated       int     `json:"isCertificated"`       // 是否实名/认证
+	TaskChargeRatio      float64 `json:"taskChargeRatio"`      // 任务分成比例
+	CompanyLockTime      string  `json:"companyLockTime"`      // 企业锁定时间
+	DataLockTime         string  `json:"dataLockTime"`         // 数据锁定时间
+	LastLoginTime        string  `json:"lastLoginTime"`        // 最后登录时间
+	PayType              string  `json:"payType"`              // 支付类型
+	Avatar               string  `json:"userImage"`            // 头像
+	ChainAddress         string  `json:"chainAddress"`         // 链上地址
+	Credential           string  `json:"credential"`           // 凭证
+	PrivateKey           string  `json:"privateKey"`           // 私钥 JSON
+	DatasetChargeRatio   float64 `json:"datasetChargeRatio"`   // 数据集分成比例
+	AlgorithmChargeRatio float64 `json:"algorithmChargeRatio"` // 算法分成比例
+	ComputingChargeRatio float64 `json:"computingChargeRatio"` // 算力分成比例
+	OpenID               string  `json:"openId"`               // OpenID
+	IsRegister           int     `json:"isRegister"`           // 注册状态
+	Activity             string  `json:"activity"`             // 活动信息
+	AppCode              string  `json:"appCode"`              // AppCode
+	BindStatus           int     `json:"bindStatus"`           // 绑定状态
+	ChatStatus           int     `json:"chatStatus"`           // 聊天状态
+	UserID               string  `json:"userNo"`               // 用户编号
+	IsNotify             int     `json:"isNotify"`             // 通知状态
+	FirmVerify           int     `json:"firmVerify"`           // 企业认证状态
+	FirmName             string  `json:"firmName"`             // 企业认证名称
+	FirmTaxID            string  `json:"firmTaxId"`            // 企业税号
+	FirmWebsite          string  `json:"firmWebsite"`          // 企业官网
+	FirmDescription      string  `json:"firmDescription"`      // 企业介绍
+	Description          string  `json:"description"`          // 卖家介绍
+	UniqueUserID         string  `json:"uniqueUserId"`         // 唯一用户 ID
+	DSUserNo             string  `json:"dsUserNo"`             // 典枢号
+	AuthPasswordHosted   int     `json:"authPasswordHosted"`   // 托管密码状态
+	ShowEnterpriseGuide  bool    `json:"showEnterpriseGuide"`  // 是否展示企业引导
+}
+
+// PageRequest 通用分页请求
+type PageRequest struct {
+	PageNo   int `json:"pageNo"`
+	PageSize int `json:"pageSize"`
+}
+
+// PageInfo 通用分页信息
+type PageInfo struct {
+	PageNo    int    `json:"pageNo"`
+	PageSize  int    `json:"pageSize"`
+	OrderBy   string `json:"orderBy"`
+	Order     string `json:"order"`
+	Count     int    `json:"count"`
+	TotalPage int    `json:"totalPage"`
+}
+
+// WalletBalance 钱包余额
+type WalletBalance struct {
+	Available    float64  `json:"available"`
+	Frozen       float64  `json:"frozen"`
+	Profit       *float64 `json:"profit"`
+	WithDrawable float64  `json:"withDrawable"`
+}
+
+// WalletTransaction 钱包交易明细
+type WalletTransaction struct {
+	Code                     string   `json:"code"`
+	ChangeType               string   `json:"changeType"`
+	OrderStatus              string   `json:"orderStatus"`
+	Type                     string   `json:"type"`
+	Status                   string   `json:"status"`
+	Amount                   float64  `json:"amount"`
+	Amount1                  float64  `json:"amount1"`
+	Amount2                  float64  `json:"amount2"`
+	Time                     int64    `json:"time"`
+	LoginNo                  string   `json:"loginNo"`
+	CreateCompanyID          string   `json:"createCompanyId"`
+	PriceInfo                any      `json:"priceInfo"`
+	EndTime                  int64    `json:"endTime"`
+	DatasetID                string   `json:"datasetId"`
+	DatasetName              string   `json:"datasetName"`
+	ServiceCharge            float64  `json:"serviceCharge"`
+	ServiceChargeRatio       float64  `json:"serviceChargeRatio"`
+	CreateUser               string   `json:"createUser"`
+	ChargeRatio              float64  `json:"chargeRatio"`
+	TransactionHash          *string  `json:"transactionHash"`
+	TotalCommissionCharge    *float64 `json:"totalCommissionCharge"`
+	SellerCommissionCharge   float64  `json:"sellerCommissionCharge"`
+	SellerCommissionRatio    *float64 `json:"sellerCommissionRatio"`
+	PlatformCommissionCharge float64  `json:"platformCommissionCharge"`
+	PlatformCommissionRatio  *float64 `json:"platformCommissionRatio"`
+	Items                    any      `json:"items"`
+	TradeID                  *string  `json:"tradeId"`
+	Pattern                  *string  `json:"pattern"`
+}
+
+// WalletTransactionListResponse 钱包交易明细响应
+type WalletTransactionListResponse struct {
+	ResultCode int                 `json:"resultCode"`
+	ResultDesc string              `json:"resultDesc"`
+	Data       []WalletTransaction `json:"data"`
+	Page       PageInfo            `json:"page"`
 }
 
 // OrderQueryData 订单查询数据
@@ -44,13 +144,13 @@ type TaskItem struct {
 	TaskStatus         int                      `json:"taskStatus"`
 	DatasetUser        int                      `json:"datasetUser"`
 	DatasetUserName    string                   `json:"datasetUserName"`
-	FileURL            string                   `json:"fileUrl"`            // 文件哈希标识（如 xxx.sealed）
-	Pattern            string                   `json:"pattern"`            // 文件格式（如 zip）
-	DownloadList       map[string][]DownloadURL `json:"downloadList"`       // 按类型分组的下载地址
-	ClientDownloadType string                   `json:"clientDownloadType"` // 客户端下载类型
-	ClientDownloadUrl  string                   `json:"clientDownloadUrl"`  // 客户端下载链接
-	ChecksumUrl        string                   `json:"checksumUrl"`        // 校验值地址
-	APIType            int                      `json:"apiType"`            // 0=数据产品, 1=API产品
+	FileURL            string                   `json:"fileUrl"`
+	Pattern            string                   `json:"pattern"`
+	DownloadList       map[string][]DownloadURL `json:"downloadList"`
+	ClientDownloadType string                   `json:"clientDownloadType"`
+	ClientDownloadUrl  string                   `json:"clientDownloadUrl"`
+	ChecksumUrl        string                   `json:"checksumUrl"`
+	APIType            int                      `json:"apiType"`
 }
 
 // OrderItem 订单项
@@ -72,14 +172,14 @@ type OrderItem struct {
 type APIDetail struct {
 	ApiID              int           `json:"apiId"`
 	ApiName            string        `json:"apiName"`
-	ApiType            string        `json:"apiType"`       // "sync" 同步API
-	RequestMethod      int           `json:"requestMethod"` // 0=GET, 1=POST
+	ApiType            string        `json:"apiType"`
+	RequestMethod      int           `json:"requestMethod"`
 	BodyParams         []APIParam    `json:"bodyParams"`
 	JavaRequestExample string        `json:"javaRequestExample"`
 	ExampleCodeList    []CodeExample `json:"exampleCodeList"`
-	AppCode            string        `json:"appCode"`     // 用户标识
-	ApiCode            string        `json:"apiCode"`     // API 产品标识
-	ApiEndpoint        string        `json:"apiEndpoint"` // 调用地址
+	AppCode            string        `json:"appCode"`
+	ApiCode            string        `json:"apiCode"`
+	ApiEndpoint        string        `json:"apiEndpoint"`
 }
 
 // APIParam API 请求参数
@@ -103,6 +203,3 @@ type APIDetailResponse struct {
 	ResultDesc string     `json:"resultDesc"`
 	Data       *APIDetail `json:"data"`
 }
-
-// 以下为 JSON 序列化辅助类型，与 types.go 中的类型对应
-// 这里重新定义以避免循环依赖

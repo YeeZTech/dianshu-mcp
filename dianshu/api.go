@@ -26,16 +26,14 @@ func GetDefaultCookiePath() string {
 // APIClient API 客户端
 type APIClient struct {
 	httpClient *http.Client
-	cookies    map[string]string // 所有 cookies name=value
+	cookies    map[string]string
 }
 
 // NewAPIClient 创建 API 客户端
 func NewAPIClient(cookies map[string]string) *APIClient {
 	return &APIClient{
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		cookies: cookies,
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+		cookies:    cookies,
 	}
 }
 
@@ -60,21 +58,56 @@ func (c *APIClient) GetUserInfo(ctx context.Context) (*UserInfo, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("解析用户信息失败: %w", err)
 	}
-
 	if result.ResultCode != 100 {
 		return nil, fmt.Errorf("获取用户信息失败: %s", result.ResultDesc)
 	}
-
 	return result.Data, nil
+}
+
+// GetWalletBalance 获取我的钱包余额
+func (c *APIClient) GetWalletBalance(ctx context.Context) (*WalletBalance, error) {
+	resp, err := c.doRequest(ctx, "POST", "/system/wallet/balance", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		ResultCode int            `json:"resultCode"`
+		ResultDesc string         `json:"resultDesc"`
+		Data       *WalletBalance `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("解析钱包余额失败: %w", err)
+	}
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("获取钱包余额失败: %s", result.ResultDesc)
+	}
+	return result.Data, nil
+}
+
+// ListWalletTransactions 获取钱包交易明细
+func (c *APIClient) ListWalletTransactions(ctx context.Context, page PageRequest) (*WalletTransactionListResponse, error) {
+	resp, err := c.doRequest(ctx, "POST", "/system/wallet/order_list", page)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var result WalletTransactionListResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析钱包交易明细失败: %w", err)
+	}
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("获取钱包交易明细失败: %s", result.ResultDesc)
+	}
+	return &result, nil
 }
 
 // QueryOrders 查询订单统计
 func (c *APIClient) QueryOrders(ctx context.Context, orderType int, orderCode string) (*OrderQueryData, error) {
-	reqBody := map[string]interface{}{
-		"orderType": orderType,
-		"orderCode": orderCode,
-	}
-
+	reqBody := map[string]interface{}{"orderType": orderType, "orderCode": orderCode}
 	resp, err := c.doRequest(ctx, "POST", "/unused/order/query", reqBody)
 	if err != nil {
 		return nil, err
@@ -92,55 +125,40 @@ func (c *APIClient) QueryOrders(ctx context.Context, orderType int, orderCode st
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("解析订单数据失败: %w", err)
 	}
-
 	if result.ResultCode != 100 {
 		return nil, fmt.Errorf("查询订单失败: %s", result.ResultDesc)
 	}
-
 	return result.Data, nil
 }
 
 // ListTasks 获取任务/订单列表
 func (c *APIClient) ListTasks(ctx context.Context, pageNo, pageSize int) ([]TaskItem, error) {
-	reqBody := map[string]interface{}{
-		"pageNo":   pageNo,
-		"pageSize": pageSize,
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/system/task/taskList", reqBody)
+	resp, err := c.doRequest(ctx, "POST", "/system/task/taskList", PageRequest{PageNo: pageNo, PageSize: pageSize})
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-
 	var result TaskListResponse
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("解析任务列表失败: %w", err)
 	}
-
 	if result.ResultCode != 100 {
 		return nil, fmt.Errorf("查询任务列表失败: %s", result.ResultDesc)
 	}
-
 	return result.Data, nil
 }
 
 // GetTaskDetail 获取单个任务详情
 func (c *APIClient) GetTaskDetail(ctx context.Context, id int) (*TaskItem, error) {
-	reqBody := map[string]interface{}{
-		"id": id,
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/system/task/taskDetail", reqBody)
+	resp, err := c.doRequest(ctx, "POST", "/system/task/taskDetail", map[string]interface{}{"id": id})
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-
 	var result struct {
 		ResultCode int       `json:"resultCode"`
 		ResultDesc string    `json:"resultDesc"`
@@ -149,41 +167,30 @@ func (c *APIClient) GetTaskDetail(ctx context.Context, id int) (*TaskItem, error
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("解析任务详情失败: %w", err)
 	}
-
 	if result.ResultCode != 100 {
 		return nil, fmt.Errorf("查询任务详情失败: %s", result.ResultDesc)
 	}
-
 	return result.Data, nil
 }
 
-// ============ API 产品子网关 ============
 const dataAPIGateway = "https://data-api.dianshudata.com"
 
 // GetAPIDetail 获取 API 产品详情（使用 data-api 子网关）
 func (c *APIClient) GetAPIDetail(ctx context.Context, apiID int) (*APIDetail, error) {
-	reqBody := map[string]interface{}{
-		"apiId":   apiID,
-		"deleted": 0,
-	}
-
-	resp, err := c.doRequestToGateway(ctx, "POST", dataAPIGateway, "/api/detail", reqBody)
+	resp, err := c.doRequestToGateway(ctx, "POST", dataAPIGateway, "/api/detail", map[string]interface{}{"apiId": apiID, "deleted": 0})
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-
 	var result APIDetailResponse
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("解析 API 详情失败: %w", err)
 	}
-
 	if result.ResultCode != 100 {
 		return nil, fmt.Errorf("查询 API 详情失败: %s", result.ResultDesc)
 	}
-
 	return result.Data, nil
 }
 
@@ -209,14 +216,10 @@ func (c *APIClient) doRequest(ctx context.Context, method, path string, body int
 	req.Header.Set("Referer", "https://dianshudata.com/")
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 
-	// 添加认证 token
 	if len(c.cookies) > 0 {
-		// 前端认证方式：token 放在请求头 "token" 中
 		if token, ok := c.cookies["token"]; ok && token != "" {
 			req.Header.Set("token", token)
 		}
-
-		// 同时携带其他 cookies（部分接口可能需要）
 		var cookieParts []string
 		for name, value := range c.cookies {
 			if name != "token" {
@@ -233,12 +236,10 @@ func (c *APIClient) doRequest(ctx context.Context, method, path string, body int
 	if err != nil {
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}
-
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
 	}
-
 	return resp, nil
 }
 
@@ -265,12 +266,10 @@ func (c *APIClient) doRequestToGateway(ctx context.Context, method, gateway, pat
 	req.Header.Set("Referer", "https://dianshudata.com/")
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 
-	// 添加认证 token
 	if len(c.cookies) > 0 {
 		if token, ok := c.cookies["token"]; ok && token != "" {
 			req.Header.Set("token", token)
 		}
-
 		var cookieParts []string
 		for name, value := range c.cookies {
 			if name != "token" {
@@ -287,11 +286,9 @@ func (c *APIClient) doRequestToGateway(ctx context.Context, method, gateway, pat
 	if err != nil {
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}
-
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
 	}
-
 	return resp, nil
 }

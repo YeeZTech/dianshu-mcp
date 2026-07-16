@@ -1,6 +1,8 @@
 package main
 
 import (
+	"sync"
+
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sirupsen/logrus"
 )
@@ -9,6 +11,9 @@ import (
 type AppServer struct {
 	dianshuService *DianshuService
 	mcpServer      *mcp.Server
+
+	loginMu         sync.Mutex
+	loginInProgress bool
 }
 
 // NewAppServer 创建应用服务

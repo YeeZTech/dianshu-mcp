@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -34,26 +33,88 @@ func (s *DianshuService) CheckLoginStatus(ctx context.Context) (*dianshu.LoginCh
 	return dianshu.CheckLoginStatus(ctx, allCookies)
 }
 
-// GetLoginQRCode 获取微信登录二维码（包含等待扫码）
-// 返回二维码图片 + 等待用户扫码，扫码成功后自动保存 token
-func (s *DianshuService) GetLoginQRCode(ctx context.Context) (*MCPToolResult, error) {
-	// 先删除旧 token，确保重新登录
-	_ = cookies.DeleteCookies()
+// GetMyProfile 获取当前登录用户资料
+func (s *DianshuService) GetMyProfile(ctx context.Context) (*dianshu.UserInfo, error) {
+	allCookies := cookies.GetAllCookies()
+	if len(allCookies) == 0 {
+		return nil, fmt.Errorf("未登录，请先使用 get_login_qrcode 扫码登录")
+	}
 
-	// 获取二维码并等待登录，超时 120 秒
-	allCookies, err := dianshu.WaitForWeChatLogin(ctx, s.browserHeadless, 120*time.Second)
+	userInfo, err := dianshu.GetUserInfo(ctx, allCookies)
 	if err != nil {
+		return nil, err
+	}
+	if userInfo == nil {
+		return nil, fmt.Errorf("未获取到用户资料")
+	}
+	return userInfo, nil
+}
+
+// GetWalletBalance 获取我的钱包
+func (s *DianshuService) GetWalletBalance(ctx context.Context) (*MCPToolResult, error) {
+	allCookies := cookies.GetAllCookies()
+	if len(allCookies) == 0 {
 		return &MCPToolResult{
-			Content: []MCPContent{
-				{
-					Type: "text",
-					Text: fmt.Sprintf("❌ 登录失败: %v\n\n请重试获取二维码。", err),
-				},
-			},
+			Content: []MCPContent{{Type: "text", Text: "❌ 未登录，请先使用 get_login_qrcode 扫码登录"}},
+			IsError: true,
 		}, nil
 	}
 
-	// 保存所有 cookies
+	client := dianshu.NewAPIClient(allCookies)
+	balance, err := client.GetWalletBalance(ctx)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 获取钱包余额失败: %v", err)}},
+			IsError: true,
+		}, nil
+	}
+
+	return &MCPToolResult{
+		Content: []MCPContent{{Type: "text", Text: formatWalletBalanceText(balance)}},
+	}, nil
+}
+
+// ListWalletTransactions 获取交易明细
+func (s *DianshuService) ListWalletTransactions(ctx context.Context, page dianshu.PageRequest) (*MCPToolResult, error) {
+	allCookies := cookies.GetAllCookies()
+	if len(allCookies) == 0 {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "❌ 未登录，请先使用 get_login_qrcode 扫码登录"}},
+			IsError: true,
+		}, nil
+	}
+	if page.PageNo <= 0 {
+		page.PageNo = 1
+	}
+	if page.PageSize <= 0 {
+		page.PageSize = 10
+	}
+
+	client := dianshu.NewAPIClient(allCookies)
+	result, err := client.ListWalletTransactions(ctx, page)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 获取交易明细失败: %v", err)}},
+			IsError: true,
+		}, nil
+	}
+
+	return &MCPToolResult{
+		Content: []MCPContent{{Type: "text", Text: formatWalletTransactionsText(result)}},
+	}, nil
+}
+
+// GetLoginQRCode 获取微信登录二维码（包含等待扫码）
+func (s *DianshuService) GetLoginQRCode(ctx context.Context) (*MCPToolResult, error) {
+	_ = cookies.DeleteCookies()
+
+	allCookies, err := dianshu.WaitForWeChatLogin(ctx, s.browserHeadless, 120*time.Second)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 登录失败: %v\n\n请重试获取二维码。", err)}},
+		}, nil
+	}
+
 	savedData := make(map[string]interface{})
 	for k, v := range allCookies {
 		savedData[k] = v
@@ -62,21 +123,88 @@ func (s *DianshuService) GetLoginQRCode(ctx context.Context) (*MCPToolResult, er
 		logrus.Warnf("保存 cookies 失败: %v", err)
 	}
 
-	// 获取用户信息
-	userInfo, err := dianshu.GetUserInfo(ctx, allCookies)
+	userInfo, _ := dianshu.GetUserInfo(ctx, allCookies)
+	return &MCPToolResult{
+		Content: []MCPContent{{Type: "text", Text: formatLoginSuccessText(userInfo)}},
+	}, nil
+}
+
+func formatLoginSuccessText(userInfo *dianshu.UserInfo) string {
 	nickname := "用户"
-	if err == nil && userInfo != nil {
-		nickname = userInfo.Nickname
+	dsUserNo := "-"
+	if userInfo != nil {
+		if userInfo.Nickname != "" {
+			nickname = userInfo.Nickname
+		}
+		if userInfo.DSUserNo != "" {
+			dsUserNo = userInfo.DSUserNo
+		}
 	}
 
-	return &MCPToolResult{
-		Content: []MCPContent{
-			{
-				Type: "text",
-				Text: fmt.Sprintf("✅ 登录成功！\n欢迎: %s\n\n你现在可以使用订单查询等功能了。", nickname),
-			},
-		},
-	}, nil
+	return fmt.Sprintf("✅ 登录成功！\n我的昵称: %s\n典枢号: %s\n\n你现在可以使用订单查询等功能了。", nickname, dsUserNo)
+}
+
+func formatMyProfileText(userInfo *dianshu.UserInfo) string {
+	nickname := "-"
+	dsUserNo := "-"
+	description := "-"
+	appCode := "-"
+
+	if userInfo != nil {
+		if userInfo.Nickname != "" {
+			nickname = userInfo.Nickname
+		}
+		if userInfo.DSUserNo != "" {
+			dsUserNo = userInfo.DSUserNo
+		}
+		if userInfo.Description != "" {
+			description = userInfo.Description
+		}
+		if userInfo.AppCode != "" {
+			appCode = userInfo.AppCode
+		}
+	}
+
+	return fmt.Sprintf("👤 我的资料\n我的昵称: %s\n典枢号: %s\n卖家介绍: %s\n我的AppCode: %s", nickname, dsUserNo, description, appCode)
+}
+
+func formatWalletBalanceText(balance *dianshu.WalletBalance) string {
+	if balance == nil {
+		return "暂无钱包数据"
+	}
+
+	profit := "-"
+	if balance.Profit != nil {
+		profit = fmt.Sprintf("%.2f", *balance.Profit)
+	}
+
+	return fmt.Sprintf("💰 我的钱包\n可用余额: %.2f\n冻结金额: %.2f\n累计收益: %s\n可提现金额: %.2f", balance.Available, balance.Frozen, profit, balance.WithDrawable)
+}
+
+func formatWalletTransactionsText(result *dianshu.WalletTransactionListResponse) string {
+	if result == nil || len(result.Data) == 0 {
+		return "暂无交易明细"
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("🧾 交易明细（第 %d/%d 页，共 %d 条）\n\n", result.Page.PageNo, result.Page.TotalPage, result.Page.Count))
+	for i, item := range result.Data {
+		timeText := time.UnixMilli(item.Time).Format("2006-01-02 15:04:05")
+		sb.WriteString(fmt.Sprintf(
+			"【明细 %d】\n类型: %s\n状态: %s\n金额: %.2f\n到账金额: %.2f\n服务费: %.2f\n数据集: %s\n订单号: %s\n创建人: %s\n时间: %s\n\n",
+			i+1,
+			defaultText(item.Type),
+			defaultText(item.Status),
+			item.Amount1,
+			item.Amount2,
+			item.ServiceCharge,
+			defaultText(item.DatasetName),
+			defaultText(item.Code),
+			defaultText(item.CreateUser),
+			timeText,
+		))
+	}
+	return sb.String()
 }
 
 // GetQRCodeOnly 仅获取二维码图片（不等待登录）
@@ -84,27 +212,14 @@ func (s *DianshuService) GetQRCodeOnly(ctx context.Context) (*MCPToolResult, err
 	imgData, text, err := dianshu.GetLoginQRCode(ctx, s.browserHeadless)
 	if err != nil {
 		return &MCPToolResult{
-			Content: []MCPContent{
-				{
-					Type: "text",
-					Text: fmt.Sprintf("无法获取二维码: %v\n\n请手动打开以下链接登录：\n%s", err, dianshu.WeChatQRLoginURL),
-				},
-			},
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("无法获取二维码: %v\n\n请手动打开以下链接登录：\n%s", err, dianshu.WeChatQRLoginURL)}},
 		}, nil
 	}
 
-	content := []MCPContent{
-		{Type: "text", Text: text},
-	}
-
+	content := []MCPContent{{Type: "text", Text: text}}
 	if len(imgData) > 0 {
-		content = append(content, MCPContent{
-			Type:     "image",
-			Data:     base64.StdEncoding.EncodeToString(imgData),
-			MimeType: "image/png",
-		})
+		content = append(content, MCPContent{Type: "image", Data: base64.StdEncoding.EncodeToString(imgData), MimeType: "image/png"})
 	}
-
 	return &MCPToolResult{Content: content}, nil
 }
 
@@ -121,12 +236,7 @@ func (s *DianshuService) DeleteCookies(ctx context.Context) (*MCPToolResult, err
 	absPath, _ := filepath.Abs(filePath)
 	dir := filepath.Dir(absPath)
 	return &MCPToolResult{
-		Content: []MCPContent{
-			{
-				Type: "text",
-				Text: fmt.Sprintf("Cookies 已成功删除，登录状态已重置。\n\n文件目录: %s\n\n下次操作时，需要重新登录。", dir),
-			},
-		},
+		Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("Cookies 已成功删除，登录状态已重置。\n\n文件目录: %s\n\n下次操作时，需要重新登录。", dir)}},
 	}, nil
 }
 
@@ -149,89 +259,15 @@ func (s *DianshuService) QueryOrders(ctx context.Context, orderType int, orderCo
 		}, nil
 	}
 
-	return &MCPToolResult{
-		Content: []MCPContent{{Type: "text", Text: formatTaskList(tasks)}},
-	}, nil
+	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: formatTaskList(tasks)}}}, nil
 }
 
-// formatTaskList 格式化任务/订单列表
-func formatTaskList(tasks []dianshu.TaskItem) string {
-	if len(tasks) == 0 {
-		return "暂无订单数据"
-	}
-
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("📋 任务/订单列表（共 %d 条）\n\n", len(tasks)))
-
-	for i, task := range tasks {
-		b.WriteString(fmt.Sprintf("─── %d ───\n", i+1))
-		b.WriteString(fmt.Sprintf("  数据名称: %s\n", task.DatasetName))
-		b.WriteString(fmt.Sprintf("  任务编号: %s\n", task.TaskCode))
-		b.WriteString(fmt.Sprintf("  价格: ¥%.2f\n", task.Price))
-		b.WriteString(fmt.Sprintf("  卖家: %s\n", task.DatasetUserName))
-
-		createTime := "-"
-		if task.CreateTime > 0 {
-			t := time.UnixMilli(task.CreateTime)
-			createTime = t.Format("2006-01-02 15:04")
-		}
-		b.WriteString(fmt.Sprintf("  购买时间: %s\n", createTime))
-
-		status := "未知"
-		switch task.TaskStatus {
-		case 0:
-			status = "待处理"
-		case 1:
-			status = "处理中"
-		case 2, 3:
-			status = "已完成"
-		case 4:
-			status = "已取消"
-		case 5:
-			status = "退款中"
-		}
-		b.WriteString(fmt.Sprintf("  状态: %s\n", status))
-		b.WriteString("\n")
-	}
-
-	return b.String()
-}
-
-// formatOrderList 格式化订单统计（保留备用）
-func formatOrderList(data *dianshu.OrderQueryData) string {
-	if data == nil {
-		return "暂无订单数据"
-	}
-	if len(data.OrderList) == 0 {
-		return fmt.Sprintf("暂无订单（共 %d 条）", data.Total)
-	}
-
-	var b strings.Builder
-	totalPages := (data.Total + data.PageSize - 1) / data.PageSize
-	b.WriteString(fmt.Sprintf("📋 订单列表（共 %d 条，当前第 %d/%d 页）\n\n", data.Total, data.PageNo, totalPages))
-
-	for i, order := range data.OrderList {
-		b.WriteString(fmt.Sprintf("─── 订单 %d ───\n", i+1))
-		b.WriteString(fmt.Sprintf("  订单编号: %s\n", order.OrderCode))
-		b.WriteString(fmt.Sprintf("  订单名称: %s\n", order.OrderName))
-		b.WriteString(fmt.Sprintf("  订单金额: %s\n", order.OrderAmount))
-		b.WriteString(fmt.Sprintf("  订单价格: %s\n", order.OrderPrice))
-		b.WriteString(fmt.Sprintf("  订单状态: %s\n", order.OrderStatus))
-		b.WriteString(fmt.Sprintf("  支付状态: %s\n", order.OrderPayStatus))
-		b.WriteString(fmt.Sprintf("  支付方式: %s\n", order.OrderPayWay))
-		b.WriteString(fmt.Sprintf("  创建时间: %s\n", order.OrderCreateTime))
-		b.WriteString("\n")
-	}
-
-	return b.String()
-}
-
-// ListDownloads 列出可下载的数据产品
+// ListDownloads 列出可下载数据产品
 func (s *DianshuService) ListDownloads(ctx context.Context) (*MCPToolResult, error) {
 	allCookies := cookies.GetAllCookies()
 	if len(allCookies) == 0 {
 		return &MCPToolResult{
-			Content: []MCPContent{{Type: "text", Text: "❌ 未登录，请先使用 /dianshu-login 扫码登录"}},
+			Content: []MCPContent{{Type: "text", Text: "❌ 未登录，请先使用 get_login_qrcode 扫码登录"}},
 			IsError: true,
 		}, nil
 	}
@@ -240,28 +276,12 @@ func (s *DianshuService) ListDownloads(ctx context.Context) (*MCPToolResult, err
 	tasks, err := client.ListTasks(ctx, 1, 50)
 	if err != nil {
 		return &MCPToolResult{
-			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 查询任务列表失败: %v", err)}},
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 查询下载列表失败: %v", err)}},
 			IsError: true,
 		}, nil
 	}
 
-	// 筛选可下载的数据产品（有 fileUrl 或 downloadList 的）
-	var downloads []dianshu.TaskItem
-	for _, t := range tasks {
-		if t.FileURL != "" || t.Pattern != "" {
-			downloads = append(downloads, t)
-		}
-	}
-
-	if len(downloads) == 0 {
-		return &MCPToolResult{
-			Content: []MCPContent{{Type: "text", Text: "暂无已购买的可下载数据产品"}},
-		}, nil
-	}
-
-	return &MCPToolResult{
-		Content: []MCPContent{{Type: "text", Text: formatDownloadList(downloads)}},
-	}, nil
+	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: formatDownloadList(tasks)}}}, nil
 }
 
 // ListPurchasedAPIs 列出已购买的 API 产品
@@ -269,7 +289,7 @@ func (s *DianshuService) ListPurchasedAPIs(ctx context.Context) (*MCPToolResult,
 	allCookies := cookies.GetAllCookies()
 	if len(allCookies) == 0 {
 		return &MCPToolResult{
-			Content: []MCPContent{{Type: "text", Text: "❌ 未登录，请先使用 /dianshu-login 扫码登录"}},
+			Content: []MCPContent{{Type: "text", Text: "❌ 未登录，请先使用 get_login_qrcode 扫码登录"}},
 			IsError: true,
 		}, nil
 	}
@@ -278,158 +298,105 @@ func (s *DianshuService) ListPurchasedAPIs(ctx context.Context) (*MCPToolResult,
 	tasks, err := client.ListTasks(ctx, 1, 50)
 	if err != nil {
 		return &MCPToolResult{
-			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 查询任务列表失败: %v", err)}},
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 查询 API 产品失败: %v", err)}},
 			IsError: true,
 		}, nil
 	}
 
-	// 筛选 API 类型的产品（APIType == 1，或者没有 fileUrl 但有 datasetId 的）
 	var apiTasks []dianshu.TaskItem
-	for _, t := range tasks {
-		if t.APIType == 1 || (t.FileURL == "" && t.DatasetID > 0) {
-			apiTasks = append(apiTasks, t)
+	for _, task := range tasks {
+		if task.APIType == 1 || (task.FileURL == "" && task.DatasetID > 0) {
+			apiTasks = append(apiTasks, task)
 		}
 	}
 
-	if len(apiTasks) == 0 {
-		return &MCPToolResult{
-			Content: []MCPContent{{Type: "text", Text: "暂无已购买的 API 产品"}},
-		}, nil
-	}
-
-	// 获取每个 API 产品的详情
-	var details []string
-	for _, t := range apiTasks {
-		detail, err := client.GetAPIDetail(ctx, t.DatasetID)
-		if err != nil {
-			details = append(details, formatAPISummary(t, nil, err.Error()))
-			continue
-		}
-		details = append(details, formatAPISummary(t, detail, ""))
-	}
-
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("🔌 已购买的 API 产品（共 %d 条）\n\n", len(details)))
-	for _, d := range details {
-		b.WriteString(d)
-		b.WriteString("\n")
-	}
-	b.WriteString("💡 可通过 DSAPIClient SDK 或直接 HTTP 调用 API\n")
-
-	return &MCPToolResult{
-		Content: []MCPContent{{Type: "text", Text: b.String()}},
-	}, nil
+	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: formatPurchasedAPIList(apiTasks)}}}, nil
 }
 
-// formatDownloadList 格式化可下载数据产品列表
-func formatDownloadList(items []dianshu.TaskItem) string {
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("📥 可下载数据产品（共 %d 条）\n\n", len(items)))
-
-	for i, item := range items {
-		b.WriteString(fmt.Sprintf("─── %d ───\n", i+1))
-		b.WriteString(fmt.Sprintf("  数据名称: %s\n", item.DatasetName))
-		b.WriteString(fmt.Sprintf("  任务编号: %s\n", item.TaskCode))
-
-		if item.Pattern != "" {
-			b.WriteString(fmt.Sprintf("  文件格式: %s\n", item.Pattern))
-		}
-
-		// 显示下载链接
-		for key, urls := range item.DownloadList {
-			for _, u := range urls {
-				b.WriteString(fmt.Sprintf("  下载地址[%s]: %s\n", key, u.URL))
-			}
-		}
-
-		if item.ChecksumUrl != "" {
-			b.WriteString(fmt.Sprintf("  校验地址: %s\n", item.ChecksumUrl))
-		}
-		if item.ClientDownloadUrl != "" {
-			b.WriteString(fmt.Sprintf("  客户端下载: %s\n", item.ClientDownloadUrl))
-		}
-
-		createTime := "-"
-		if item.CreateTime > 0 {
-			t := time.UnixMilli(item.CreateTime)
-			createTime = t.Format("2006-01-02 15:04")
-		}
-		b.WriteString(fmt.Sprintf("  购买时间: %s\n", createTime))
-		b.WriteString("\n")
+func formatTaskList(tasks []dianshu.TaskItem) string {
+	if len(tasks) == 0 {
+		return "暂无订单数据"
 	}
 
-	b.WriteString("💡 文件为 .sealed（加密封包格式），需使用典枢客户端解密\n")
-	return b.String()
+	var sb strings.Builder
+	for i, task := range tasks {
+		statusText := "未知"
+		switch task.Status {
+		case 0:
+			statusText = "待支付"
+		case 1:
+			statusText = "进行中"
+		case 2:
+			statusText = "已完成"
+		case 3:
+			statusText = "已取消"
+		}
+
+		payStatusText := "未知"
+		switch task.PayStatus {
+		case 0:
+			payStatusText = "未支付"
+		case 1:
+			payStatusText = "已支付"
+		case 2:
+			payStatusText = "退款中"
+		case 3:
+			payStatusText = "已退款"
+		}
+
+		sb.WriteString(fmt.Sprintf("【订单 %d】\n任务编码: %s\n数据集: %s\n卖家: %s\n金额: %.4f\n状态: %s\n支付状态: %s\n创建时间: %s\n\n", i+1, task.TaskCode, task.DatasetName, task.DatasetUserName, task.Price, statusText, payStatusText, task.CreateTimeSql))
+	}
+	return sb.String()
 }
 
-// formatAPISummary 格式化单个 API 产品信息
-func formatAPISummary(task dianshu.TaskItem, detail *dianshu.APIDetail, errMsg string) string {
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("  API 名称: %s\n", task.DatasetName))
-
-	if errMsg != "" {
-		b.WriteString(fmt.Sprintf("  ⚠️ 获取详情失败: %s\n", errMsg))
-		return b.String()
+func formatDownloadList(tasks []dianshu.TaskItem) string {
+	var downloads []dianshu.TaskItem
+	for _, task := range tasks {
+		if task.FileURL != "" || task.Pattern != "" || len(task.DownloadList) > 0 {
+			downloads = append(downloads, task)
+		}
+	}
+	if len(downloads) == 0 {
+		return "暂无已购买的可下载数据产品"
 	}
 
-	if detail == nil {
-		return b.String()
-	}
-
-	b.WriteString(fmt.Sprintf("  API 类型: %s\n", detail.ApiType))
-	method := "GET"
-	if detail.RequestMethod == 1 {
-		method = "POST"
-	}
-	b.WriteString(fmt.Sprintf("  请求方式: %s\n", method))
-
-	if detail.ApiEndpoint != "" {
-		b.WriteString(fmt.Sprintf("  调用地址: %s\n", detail.ApiEndpoint))
-	}
-
-	// 参数列表
-	if len(detail.BodyParams) > 0 {
-		b.WriteString("  参数:\n")
-		for _, p := range detail.BodyParams {
-			req := "可选"
-			if p.Required {
-				req = "必填"
+	var sb strings.Builder
+	for i, task := range downloads {
+		sb.WriteString(fmt.Sprintf("【下载 %d】\n数据集: %s\n任务编码: %s\n文件类型: %s\n", i+1, task.DatasetName, task.TaskCode, defaultText(task.Pattern)))
+		if task.FileURL != "" {
+			sb.WriteString(fmt.Sprintf("文件标识: %s\n", task.FileURL))
+		}
+		if task.ClientDownloadUrl != "" {
+			sb.WriteString(fmt.Sprintf("客户端下载地址: %s\n", task.ClientDownloadUrl))
+		}
+		if task.ChecksumUrl != "" {
+			sb.WriteString(fmt.Sprintf("校验文件地址: %s\n", task.ChecksumUrl))
+		}
+		for group, urls := range task.DownloadList {
+			for _, item := range urls {
+				sb.WriteString(fmt.Sprintf("%s下载地址: %s\n", group, item.URL))
 			}
-			example := ""
-			if p.Example != "" {
-				example = fmt.Sprintf(" (示例: %s)", p.Example)
-			}
-			b.WriteString(fmt.Sprintf("    - %s (%s, %s)%s: %s\n", p.Name, p.Type, req, example, p.Description))
 		}
+		sb.WriteString("\n")
 	}
-
-	// Java 代码示例（截取前 200 字符）
-	if detail.JavaRequestExample != "" {
-		code := detail.JavaRequestExample
-		if len(code) > 200 {
-			code = code[:200] + "..."
-		}
-		b.WriteString(fmt.Sprintf("  Java 调用示例:\n    %s\n", code))
-	}
-
-	// 多语言代码示例
-	for _, ex := range detail.ExampleCodeList {
-		code := ex.Code
-		if len(code) > 150 {
-			code = code[:150] + "..."
-		}
-		b.WriteString(fmt.Sprintf("  [%s] 代码示例:\n    %s\n", ex.Language, code))
-	}
-
-	return b.String()
+	return sb.String()
 }
 
-// SaveQRCodeImage 保存二维码图片到临时文件
-func SaveQRCodeImage(imgData []byte) (string, error) {
-	tmpDir := os.TempDir()
-	filePath := filepath.Join(tmpDir, "dianshu-qrcode.png")
-	if err := os.WriteFile(filePath, imgData, 0644); err != nil {
-		return "", err
+func formatPurchasedAPIList(tasks []dianshu.TaskItem) string {
+	if len(tasks) == 0 {
+		return "暂无已购买的 API 产品"
 	}
-	return filePath, nil
+
+	var sb strings.Builder
+	for i, task := range tasks {
+		sb.WriteString(fmt.Sprintf("【API %d】\n名称: %s\n任务编码: %s\n卖家: %s\n\n", i+1, task.DatasetName, task.TaskCode, task.DatasetUserName))
+	}
+	return sb.String()
+}
+
+func defaultText(v string) string {
+	if v == "" {
+		return "-"
+	}
+	return v
 }

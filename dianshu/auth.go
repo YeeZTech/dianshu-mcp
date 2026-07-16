@@ -14,10 +14,11 @@ const WeChatQRLoginURL = "https://open.weixin.qq.com/connect/qrconnect?appid=wxb
 
 // LoginCheckResult 登录检查结果
 type LoginCheckResult struct {
-	IsLogin  bool   `json:"isLogin"`
-	Nickname string `json:"nickname,omitempty"`
-	UserID   string `json:"userId,omitempty"`
-	Error    string `json:"error,omitempty"`
+	IsLogin  bool      `json:"isLogin"`
+	Nickname string    `json:"nickname,omitempty"`
+	UserID   string    `json:"userId,omitempty"`
+	UserInfo *UserInfo `json:"userInfo,omitempty"`
+	Error    string    `json:"error,omitempty"`
 }
 
 // GetLoginQRCode 获取微信登录二维码
@@ -145,5 +146,6 @@ func CheckLoginStatus(ctx context.Context, cookies map[string]string) (*LoginChe
 		IsLogin:  true,
 		Nickname: userInfo.Nickname,
 		UserID:   userInfo.UserID,
+		UserInfo: userInfo,
 	}, nil
 }
