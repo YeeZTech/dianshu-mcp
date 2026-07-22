@@ -313,6 +313,57 @@ func (s *DianshuService) ListPurchasedAPIs(ctx context.Context) (*MCPToolResult,
 	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: formatPurchasedAPIList(apiTasks)}}}, nil
 }
 
+// CallPurchasedAPI 调用已购买的 API 产品。
+func (s *DianshuService) CallPurchasedAPI(ctx context.Context, args CallPurchasedAPIArgs) (*MCPToolResult, error) {
+	profile, err := s.GetMyProfile(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if profile == nil || strings.TrimSpace(profile.AppCode) == "" {
+		return nil, fmt.Errorf("当前登录账号缺少 appCode，无法调用已购买 API")
+	}
+
+	dataAPIContext, err := dianshu.NewDataAPIContext(profile.AppCode)
+	if err != nil {
+		return nil, err
+	}
+	gatewayClient, err := dianshu.NewDataAPIGatewayClient(dataAPIContext)
+	if err != nil {
+		return nil, err
+	}
+
+	requestMethod := strings.TrimSpace(args.Method)
+	if requestMethod == "" {
+		requestMethod = "POST"
+	}
+
+	bodyParams := convertToDataAPIParams(args.BodyParams)
+	queryParams := convertToDataAPIParams(args.QueryParams)
+	headerParams := convertToDataAPIParams(args.HeaderParams)
+
+	var responseText string
+	switch strings.ToUpper(requestMethod) {
+	case "POST":
+		responseText, err = gatewayClient.CallPost(ctx, args.APICode, dianshu.DataAPIPostRequest{
+			BodyParams:     bodyParams,
+			RequestHeaders: headerParams,
+		})
+	case "GET":
+		responseText, err = gatewayClient.CallGet(ctx, args.APICode, dianshu.DataAPIGetRequest{
+			QueryParams:    queryParams,
+			RequestHeaders: headerParams,
+		})
+	default:
+		return nil, fmt.Errorf("不支持的请求方式: %s", requestMethod)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	resultText := fmt.Sprintf("✅ 已调用购买的 API\nAPI 标识: %s\n请求方式: %s\n\n返回结果:\n%s", args.APICode, strings.ToUpper(requestMethod), responseText)
+	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: resultText}}}, nil
+}
+
 func formatTaskList(tasks []dianshu.TaskItem) string {
 	if len(tasks) == 0 {
 		return "暂无订单数据"

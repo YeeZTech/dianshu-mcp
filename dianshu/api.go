@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	baseAPIURL = "https://api.dianshudata.com"
-	userAgent  = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+	baseAPIURL        = "https://api.dianshudata.com"
+	dataAPIDetailURL  = "https://data-api.dianshudata.com"
+	userAgent         = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+	apiRequestTimeout = 30 * time.Second
 )
 
 // GetDefaultCookiePath 获取默认 cookies 文件路径

@@ -128,7 +128,15 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 		}),
 	)
 
-	logrus.Infof("Registered %d MCP tools", 9)
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "call_purchased_api", Description: "调用已购买的典枢 API 产品，支持 GET/POST 和参数透传", Annotations: &mcp.ToolAnnotations{Title: "Call Purchased API", ReadOnlyHint: true}},
+		withPanicRecovery("call_purchased_api", func(ctx context.Context, req *mcp.CallToolRequest, args CallPurchasedAPIArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleCallPurchasedAPI(ctx, args)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	logrus.Infof("Registered %d MCP tools", 10)
 }
 
 // convertToMCPResult 将自定义 MCPToolResult 转换为官方 SDK 格式

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"dianshu-mcp/dianshu"
@@ -10,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// WalletTransactionArgs 钱包交易明细参数
+// WalletTransactionArgs 钱包交易明细参数。
 type WalletTransactionArgs struct {
 	PageNo   int `json:"pageNo" jsonschema:"页码，默认 1"`
 	PageSize int `json:"pageSize" jsonschema:"每页条数，默认 10"`
@@ -18,7 +19,7 @@ type WalletTransactionArgs struct {
 
 // MCP 工具处理函数
 
-// handleCheckLoginStatus 处理检查登录状态
+// handleCheckLoginStatus 处理检查登录状态。
 func (s *AppServer) handleCheckLoginStatus(ctx context.Context) *MCPToolResult {
 	logrus.Info("MCP: 检查登录状态")
 
@@ -33,7 +34,6 @@ func (s *AppServer) handleCheckLoginStatus(ctx context.Context) *MCPToolResult {
 		}
 	}
 
-	// 登录状态检查
 	if status.IsLogin {
 		text := fmt.Sprintf("✅ 已登录\n我的昵称: %s", status.Nickname)
 		if status.UserInfo != nil {
@@ -45,7 +45,7 @@ func (s *AppServer) handleCheckLoginStatus(ctx context.Context) *MCPToolResult {
 	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: "❌ 未登录\n请使用 get_login_qrcode 获取微信二维码并扫码登录。"}}}
 }
 
-// handleGetMyProfile 处理获取我的资料
+// handleGetMyProfile 处理获取我的资料。
 func (s *AppServer) handleGetMyProfile(ctx context.Context) *MCPToolResult {
 	logrus.Info("MCP: 获取我的资料")
 
@@ -63,7 +63,7 @@ func (s *AppServer) handleGetMyProfile(ctx context.Context) *MCPToolResult {
 	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: formatMyProfileText(userInfo)}}}
 }
 
-// handleGetWalletBalance 处理获取我的钱包
+// handleGetWalletBalance 处理获取我的钱包。
 func (s *AppServer) handleGetWalletBalance(ctx context.Context) *MCPToolResult {
 	logrus.Info("MCP: 获取我的钱包")
 
@@ -81,7 +81,7 @@ func (s *AppServer) handleGetWalletBalance(ctx context.Context) *MCPToolResult {
 	return result
 }
 
-// handleListWalletTransactions 处理获取交易明细
+// handleListWalletTransactions 处理获取交易明细。
 func (s *AppServer) handleListWalletTransactions(ctx context.Context, args WalletTransactionArgs) *MCPToolResult {
 	logrus.Infof("MCP: 获取交易明细 (pageNo=%d, pageSize=%d)", args.PageNo, args.PageSize)
 
@@ -99,7 +99,7 @@ func (s *AppServer) handleListWalletTransactions(ctx context.Context, args Walle
 	return result
 }
 
-// handleGetLoginQRCode 处理获取登录并等待扫码
+// handleGetLoginQRCode 处理获取登录并等待扫码。
 func (s *AppServer) handleGetLoginQRCode(ctx context.Context) *MCPToolResult {
 	logrus.Info("MCP: 获取登录二维码并等待扫码")
 
@@ -128,7 +128,7 @@ func (s *AppServer) handleGetLoginQRCode(ctx context.Context) *MCPToolResult {
 	return result
 }
 
-// handleDeleteCookies 处理删除 cookies
+// handleDeleteCookies 处理删除 cookies。
 func (s *AppServer) handleDeleteCookies(ctx context.Context) *MCPToolResult {
 	logrus.Info("MCP: 删除 cookies")
 
@@ -143,7 +143,7 @@ func (s *AppServer) handleDeleteCookies(ctx context.Context) *MCPToolResult {
 	return result
 }
 
-// handleListOrders 处理查询订单列表
+// handleListOrders 处理查询订单列表。
 func (s *AppServer) handleListOrders(ctx context.Context, args ListOrdersArgs) *MCPToolResult {
 	logrus.Infof("MCP: 查询订单 (orderType=%d, orderCode=%s)", args.OrderType, args.OrderCode)
 
@@ -161,7 +161,7 @@ func (s *AppServer) handleListOrders(ctx context.Context, args ListOrdersArgs) *
 	return result
 }
 
-// handleListDownloads 处理列出可下载数据产品
+// handleListDownloads 处理列出可下载数据产品。
 func (s *AppServer) handleListDownloads(ctx context.Context) *MCPToolResult {
 	logrus.Info("MCP: 列出可下载数据产品")
 
@@ -179,7 +179,7 @@ func (s *AppServer) handleListDownloads(ctx context.Context) *MCPToolResult {
 	return result
 }
 
-// handleListPurchasedAPIs 处理列出已购买的 API 产品
+// handleListPurchasedAPIs 处理列出已购买的 API 产品。
 func (s *AppServer) handleListPurchasedAPIs(ctx context.Context) *MCPToolResult {
 	logrus.Info("MCP: 列出已购买的 API 产品")
 
@@ -194,5 +194,34 @@ func (s *AppServer) handleListPurchasedAPIs(ctx context.Context) *MCPToolResult 
 		}
 	}
 
+	return result
+}
+
+// handleCallPurchasedAPI 处理调用已购买 API。
+func (s *AppServer) handleCallPurchasedAPI(ctx context.Context, args CallPurchasedAPIArgs) *MCPToolResult {
+	logrus.Infof("MCP: 调用已购买 API (apiCode=%s, method=%s)", args.APICode, args.Method)
+
+	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+
+	result, err := s.dianshuService.CallPurchasedAPI(ctx, args)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "调用已购买 API 失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+	return result
+}
+
+func convertToDataAPIParams(params []NameValueParam) []dianshu.DataAPIParam {
+	result := make([]dianshu.DataAPIParam, 0, len(params))
+	for _, item := range params {
+		name := strings.TrimSpace(item.Name)
+		if name == "" {
+			continue
+		}
+		result = append(result, dianshu.DataAPIParam{Name: name, Value: item.Value})
+	}
 	return result
 }
