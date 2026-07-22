@@ -1,14 +1,13 @@
 # dianshu-mcp
 
-典枢数据平台（https://dianshudata.com）的 MCP 服务。提供微信扫码登录、订单查询等功能，支持作为 MCP 工具被 Claude Code 等客户端调用。
+典枢数据平台（https://dianshudata.com）的 MCP 服务。当前提供微信扫码登录和数据查询能力，支持作为 MCP 工具被 Claude Code 等客户端调用。
 
 ## 功能
 
 - **微信扫码登录** — 通过微信开放平台扫码登录典枢账号
 - **登录状态管理** — 检查登录状态、清除登录态
-- **订单/任务查询** — 查看已购买的数据订单列表
-- **数据下载** — 查看已购买数据产品的下载链接和校验信息
-- **API 产品** — 查看已购买 API 产品的调用参数和代码示例
+- **数据查询** — AI 可直接补全查询参数并路由到具体数据源
+- **扣费抽象预留** — 当前保留通用扣费接口，后续可接真实扣费逻辑
 
 ## 快速开始
 
@@ -19,70 +18,31 @@
 
 ### 编译
 
+如果本机 `go` 命令正常：
+
 ```bash
 cd dianshu-mcp
+go build -o dianshu-mcp .
+```
+
+如果你的 `goenv` shim 已损坏，可临时使用本机缓存的 Go toolchain：
+
+```bash
+export PATH="/Users/zhyyao/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.5.darwin-arm64/bin:$PATH"
+cd dianshu-mcp
+go mod tidy
 go build -o dianshu-mcp .
 ```
 
 ### 启动服务
 
 ```bash
-# 默认无头模式（不显示浏览器窗口）
 ./dianshu-mcp
-
-# 有头模式（显示浏览器窗口，方便扫码）
-./dianshu-mcp -headless=false
-
-# 指定端口
-./dianshu-mcp -port :18061
-
-# 后台运行（关掉终端也不影响）
-nohup ./dianshu-mcp > /tmp/dianshu-mcp.log 2>&1 &
 ```
 
 启动后 MCP 服务运行在 `http://localhost:18061/mcp`（Streamable HTTP）。
 
-### 停止服务
-
-```bash
-pkill -f dianshu-mcp
-```
-
-### 查看日志
-
-```bash
-cat /tmp/dianshu-mcp.log        # 查看日志
-tail -f /tmp/dianshu-mcp.log    # 实时查看日志
-```
-
-### 重新编译并重启
-
-```bash
-cd dianshu-mcp
-pkill -f dianshu-mcp
-GOPROXY=https://goproxy.cn,direct go build -o dianshu-mcp .
-nohup ./dianshu-mcp -headless=false > /tmp/dianshu-mcp.log 2>&1 &
-```
-
-### 配置 MCP 连接
-
-```bash
-claude mcp add dianshu --transport http http://localhost:18061/mcp
-```
-
-或写入 `~/.claude/settings.json`：
-
-```json
-{
-  "mcpServers": {
-    "dianshu": {
-      "url": "http://localhost:18061/mcp"
-    }
-  }
-}
-```
-
-配置后需重启 Claude Code 会话。
+> 当前小红书搜索数据源的 `Authorization` 已写死在 `dianshu/provider_xiaohongshu_search.go` 中，仅适用于该数据源。
 
 ## MCP 工具
 
@@ -90,234 +50,81 @@ claude mcp add dianshu --transport http http://localhost:18061/mcp
 
 检查当前登录状态。
 
-**参数：** 无
-
-**示例：**
-```
-✅ 已登录
-我的昵称: zhyyao-2
-```
-
-### `get_my_profile`
-
-获取当前登录账号的资料信息。
-
-**参数：** 无
-
-**返回字段：**
-- 我的昵称
-- 典枢号
-- 卖家介绍
-- 我的AppCode
-**示例：**
-```
-👤 我的资料
-我的昵称: zhyyao-2
-典枢号: dsid_r2eljdzpiy
-卖家介绍: -
-我的AppCode: 170b5a8992574b40b1e5da65aa111fdd
-企业名称: 到底
-```
-
-### `get_my_wallet`
-
-获取当前登录账号的钱包余额信息。
-
-**参数：** 无
-
-**返回字段：**
-- 可用余额
-- 冻结金额
-- 累计收益
-- 可提现金额
-
-**示例：**
-```
-💰 我的钱包
-可用余额: 0.09
-冻结金额: 0.09
-累计收益: -
-可提现金额: 0.00
-```
-
-### `list_wallet_transactions`
-
-查询钱包交易明细，支持分页。
-
-**参数：**
-- `pageNo`：页码，默认 1
-- `pageSize`：每页条数，默认 10
-
-**示例：**
-```
-🧾 交易明细（第 1/1 页，共 1 条）
-
-【明细 1】
-类型: 数据收益
-状态: 已到账
-金额: 0.10
-到账金额: 0.09
-服务费: 0.01
-数据集: 壁纸1
-订单号: T17841030252985732
-创建人: zhyyao-2
-时间: 2026-07-15 16:11:54
-```
-
 ### `get_login_qrcode`
 
 获取微信登录二维码并等待扫码完成。
-
-**参数：** 无
-
-**流程：**
-1. 自动打开浏览器窗口显示微信二维码
-2. 用户使用手机微信扫码
-3. 扫码后自动提取 token 并保存
-4. 返回登录成功信息
 
 ### `delete_cookies`
 
 清除保存的登录态，下次操作需要重新登录。
 
-**参数：** 无
+### `data_search`
 
-**示例：**
-```
-Cookies 已成功删除，登录状态已重置。
-```
-
-### `list_orders`
-
-查询已购买的数据订单/任务列表。
+数据查询工具。AI 可以只传 `query`，也可以主动补全其他字段。
 
 **参数：**
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `orderType` | number | 否 | 订单类型：0-全部(默认) |
-| `orderCode` | string | 否 | 按订单编号查询 |
-
-**示例：**
-```
-📋 任务/订单列表（共 3 条）
-
-─── 1 ───
-  数据名称: 捉妖物语2
-  任务编号: P17757964217107820
-  价格: ¥2.10
-  卖家: 游戏频道
-  购买时间: 2026-04-10 12:47
-  状态: 已完成
+```json
+{
+  "query": "西瓜",
+  "provider": "xiaohongshu",
+  "dataset": "search",
+  "siteDomain": "xiaohongshu.com",
+  "keyword": "西瓜",
+  "page": "1",
+  "startTime": "1779381079",
+  "endTime": "1779427884"
+}
 ```
 
-### `list_downloads`
+## REST API
 
-列出已购买的可下载数据产品及其下载信息。
-
-**参数：** 无
-
-**示例：**
-```
-📥 可下载数据产品（共 2 条）
-
-─── 1 ───
-  数据名称: 捉妖物语2
-  任务编号: P17757964217107820
-  文件格式: zip
-  下载地址: https://cdn.dianshudata.com/xxx.sealed
-  校验地址: https://download.dianshudata.com/...checksum
-  客户端下载: https://d.dianshudata.com
-  购买时间: 2026-04-10 12:47
-
-💡 文件为 .sealed 格式，需使用典枢客户端解密
-```
-
-### `list_purchased_apis`
-
-列出已购买的 API 产品及调用详情。
-
-**参数：** 无
-
-**示例：**
-```
-🔌 已购买的 API 产品（共 1 条）
-
-  API 名称: 金融风控场景信息调取API
-  API 类型: sync
-  请求方式: GET
-  参数:
-    - appCode (string, 必填): 用户标识
-    - apiCode (string, 必填): 产品标识
-  Java 调用示例:
-    DSAPIClient client = new DSAPIClient(...)
-
-💡 可通过 DSAPIClient SDK 或直接 HTTP 调用 API
-```
-
-## Skill 命令
-
-在 Claude Code 中可使用以下 skill：
-
-| 命令 | 用途 |
-|------|------|
-| `/dianshu` | 典枢平台通用入口 |
-| `/dianshu-login` | 微信扫码登录管理 |
-| `/dianshu-order` | 查询订单信息 |
-| `/dianshu-download` | 查看/下载已购买的数据产品 |
-| `/dianshu-api` | 查看已购买的 API 产品信息 |
-
-## 项目结构
-
-```
-dianshu-mcp/
-├── main.go              # 入口
-├── app_server.go        # 应用服务
-├── routes.go            # HTTP 路由 & MCP Handler
-├── mcp_server.go        # MCP 工具注册
-├── mcp_handlers.go      # MCP 工具处理
-├── handlers_api.go      # REST API
-├── service.go           # 业务逻辑
-├── types.go             # 类型定义
-├── cookies/             # Cookie 持久化管理
-├── dianshu/             # 典枢平台交互层
-│   ├── auth.go          # 微信扫码登录
-│   ├── api.go           # HTTP API 客户端
-│   ├── browser.go       # 浏览器自动化
-│   └── types.go         # 数据结构
-└── configs/             # 配置
-```
-
-## 认证说明
-
-典枢平台的 API 认证方式为 **请求头 `token`**（非 Cookie 或 Authorization Bearer 头）。
-
-登录流程：
-1. 调用 `get_login_qrcode` 打开微信开放平台二维码
-2. 用户使用手机微信扫码
-3. 微信认证后重定向到典枢 SSO
-4. SSO 回调后设置 JWT token
-5. 服务自动提取 token 并保存
-
-所有后续 API 调用在请求头中添加 `token: <JWT>` 进行认证。
-
-## 技术栈
-
-- **语言：** Go
-- **Web 框架：** Gin
-- **MCP SDK：** `github.com/modelcontextprotocol/go-sdk` (v1.6.1+)
-- **浏览器自动化：** `github.com/go-rod/rod` (v0.116+)
-- **MCP 传输：** Streamable HTTP (JSON mode)
-
-## 开发
+### 登录状态
 
 ```bash
-# 编译
-go build -o dianshu-mcp .
-
-# 格式化
-go fmt ./...
-
-# 依赖管理
-GOPROXY=https://goproxy.cn,direct go mod tidy
+GET /api/v1/login/status
 ```
+
+### 获取登录二维码
+
+```bash
+GET /api/v1/login/qrcode
+```
+
+### 删除登录态
+
+```bash
+DELETE /api/v1/login/cookies
+```
+
+### 数据查询
+
+```bash
+curl -X POST 'http://localhost:18061/api/v1/data/search' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "query": "西瓜",
+    "provider": "xiaohongshu",
+    "dataset": "search",
+    "siteDomain": "xiaohongshu.com",
+    "keyword": "西瓜",
+    "page": "1"
+  }'
+```
+
+## 当前默认路由规则
+
+当前默认规则：
+
+- `provider` 留空时，默认 `xiaohongshu`
+- `dataset` 留空时，默认 `search`
+- `siteDomain` 留空时，默认 `xiaohongshu.com`
+- `keyword` 留空时，回退为 `query`
+- `page` 留空时，默认 `1`
+
+## 代码组织建议
+
+- `dianshu/data_query.go`：统一查询抽象、通用返回值、扣费接口
+- `dianshu/provider_*.go`：每个数据源 / 数据集各写一个文件，存放不通用实现
+- `service.go`：统一业务编排（登录校验、参数兜底、调用查询、调用扣费）
+- `mcp_server.go` / `handlers_api.go`：暴露工具入口，不耦合具体数据源细节

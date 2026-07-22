@@ -9,7 +9,7 @@ import (
 
 // REST API 处理函数
 
-// respondError 返回错误响应
+// respondError 返回错误响应。
 func respondError(c *gin.Context, statusCode int, code, message string, details any) {
 	response := ErrorResponse{
 		Error:   message,
@@ -21,7 +21,7 @@ func respondError(c *gin.Context, statusCode int, code, message string, details 
 	c.JSON(statusCode, response)
 }
 
-// respondSuccess 返回成功响应
+// respondSuccess 返回成功响应。
 func respondSuccess(c *gin.Context, data any, message string) {
 	response := SuccessResponse{
 		Success: true,
@@ -33,7 +33,7 @@ func respondSuccess(c *gin.Context, data any, message string) {
 	c.JSON(http.StatusOK, response)
 }
 
-// checkLoginStatusHandler 检查登录状态
+// checkLoginStatusHandler 检查登录状态。
 func (s *AppServer) checkLoginStatusHandler(c *gin.Context) {
 	status, err := s.dianshuService.CheckLoginStatus(c.Request.Context())
 	if err != nil {
@@ -43,7 +43,7 @@ func (s *AppServer) checkLoginStatusHandler(c *gin.Context) {
 	respondSuccess(c, status, "检查登录状态成功")
 }
 
-// getLoginQRCodeHandler 获取登录二维码
+// getLoginQRCodeHandler 获取登录二维码。
 func (s *AppServer) getLoginQRCodeHandler(c *gin.Context) {
 	result, err := s.dianshuService.GetLoginQRCode(c.Request.Context())
 	if err != nil {
@@ -53,7 +53,7 @@ func (s *AppServer) getLoginQRCodeHandler(c *gin.Context) {
 	respondSuccess(c, result, "获取登录二维码成功")
 }
 
-// deleteCookiesHandler 删除 cookies
+// deleteCookiesHandler 删除 cookies。
 func (s *AppServer) deleteCookiesHandler(c *gin.Context) {
 	result, err := s.dianshuService.DeleteCookies(c.Request.Context())
 	if err != nil {
@@ -63,19 +63,18 @@ func (s *AppServer) deleteCookiesHandler(c *gin.Context) {
 	respondSuccess(c, result, "删除 cookies 成功")
 }
 
-// listOrdersHandler 查询订单列表
-func (s *AppServer) listOrdersHandler(c *gin.Context) {
-	var req OrderQueryRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+// dataSearchHandler 数据查询。
+func (s *AppServer) dataSearchHandler(c *gin.Context) {
+	var request DataSearchArgs
+	if err := c.ShouldBindJSON(&request); err != nil {
 		respondError(c, http.StatusBadRequest, "INVALID_REQUEST", "请求参数错误", err.Error())
 		return
 	}
 
-	result, err := s.dianshuService.QueryOrders(c.Request.Context(), req.OrderType, req.OrderCode)
+	result, err := s.dianshuService.DataSearch(c.Request.Context(), request)
 	if err != nil {
-		respondError(c, http.StatusInternalServerError, "QUERY_ORDERS_FAILED", "查询订单失败", err.Error())
+		respondError(c, http.StatusInternalServerError, "DATA_SEARCH_FAILED", "数据查询失败", err.Error())
 		return
 	}
-
-	respondSuccess(c, result, "查询订单成功")
+	respondSuccess(c, result, "数据查询成功")
 }

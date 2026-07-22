@@ -3,8 +3,6 @@ module dianshu-mcp
 go 1.25.0
 
 require (
-	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1
-	github.com/ethereum/go-ethereum v1.16.2
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-rod/rod v0.116.2
 	github.com/modelcontextprotocol/go-sdk v1.6.1
@@ -16,7 +14,6 @@ require (
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
@@ -25,7 +22,6 @@ require (
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
-	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

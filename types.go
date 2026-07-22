@@ -28,23 +28,14 @@ type ErrorResponse struct {
 	Details interface{} `json:"details"`
 }
 
-// OrderQueryRequest 订单查询请求。
-type OrderQueryRequest struct {
-	OrderType int    `json:"orderType"`
-	OrderCode string `json:"orderCode"`
-}
-
-// NameValueParam 表示 MCP 传入的键值参数。
-type NameValueParam struct {
-	Name  string `json:"name" jsonschema:"参数名，必填"`
-	Value string `json:"value" jsonschema:"参数值，必填"`
-}
-
-// CallPurchasedAPIArgs 表示调用已购买 API 的请求参数。
-type CallPurchasedAPIArgs struct {
-	APICode      string           `json:"apiCode" jsonschema:"API 标识，必填"`
-	Method       string           `json:"method,omitempty" jsonschema:"请求方式：GET 或 POST，默认 POST"`
-	QueryParams  []NameValueParam `json:"queryParams,omitempty" jsonschema:"GET 请求 query 参数列表"`
-	BodyParams   []NameValueParam `json:"bodyParams,omitempty" jsonschema:"POST 请求 body 参数列表"`
-	HeaderParams []NameValueParam `json:"headerParams,omitempty" jsonschema:"卖家 API 透传 header 参数列表"`
+// DataSearchArgs 表示数据查询请求。
+type DataSearchArgs struct {
+	Query      string `json:"query" jsonschema:"原始查询内容，AI 可直接传用户问题"`
+	Provider   string `json:"provider,omitempty" jsonschema:"数据源名称，可选，AI 可自动填写；默认 xiaohongshu"`
+	Dataset    string `json:"dataset,omitempty" jsonschema:"数据集类型，可选，AI 可自动填写；默认 search"`
+	SiteDomain string `json:"siteDomain,omitempty" jsonschema:"站点域名，可选，AI 可自动填写；默认 xiaohongshu.com"`
+	Page       string `json:"page,omitempty" jsonschema:"页码，可选，默认 1"`
+	Keyword    string `json:"keyword,omitempty" jsonschema:"搜索关键词，可选；若 AI 已提取则直接传"`
+	StartTime  string `json:"startTime,omitempty" jsonschema:"开始时间，可选，Unix 秒时间戳；未传时默认回退到最近 7 天"`
+	EndTime    string `json:"endTime,omitempty" jsonschema:"结束时间，可选，Unix 秒时间戳；未传时默认使用当前时间"`
 }
