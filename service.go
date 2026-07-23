@@ -38,23 +38,6 @@ func (s *DianshuService) CheckLoginStatus(ctx context.Context) (*dianshu.LoginCh
 	return dianshu.CheckLoginStatus(ctx, allCookies)
 }
 
-// GetMyProfile 获取当前登录用户资料。
-func (s *DianshuService) GetMyProfile(ctx context.Context) (*dianshu.UserInfo, error) {
-	allCookies := cookies.GetAllCookies()
-	if len(allCookies) == 0 {
-		return nil, fmt.Errorf("未登录，请先使用 get_login_qrcode 扫码登录")
-	}
-
-	userInfo, err := dianshu.GetUserInfo(ctx, allCookies)
-	if err != nil {
-		return nil, err
-	}
-	if userInfo == nil {
-		return nil, fmt.Errorf("未获取到用户资料")
-	}
-	return userInfo, nil
-}
-
 // GetLoginQRCode 获取微信登录二维码（包含等待扫码）。
 func (s *DianshuService) GetLoginQRCode(ctx context.Context) (*MCPToolResult, error) {
 	_ = cookies.DeleteCookies()
@@ -97,12 +80,9 @@ func (s *DianshuService) DeleteCookies(ctx context.Context) (*MCPToolResult, err
 	}, nil
 }
 
-// DataSearch 执行数据查询，并预留通用扣费入口。
-func (s *DianshuService) DataSearch(ctx context.Context, request DataSearchArgs) (*MCPToolResult, error) {
-	dataQueryRequest, err := s.buildDataQueryRequest(request)
-	if err != nil {
-		return nil, err
-	}
+// DataSearch 执行数据查询，查询结果写入 output/data-search/ 目录。
+func (s *DianshuService) DataSearch(ctx context.Context, args DataSearchArgs) (*MCPToolResult, error) {
+	dataQueryRequest := buildDataQueryRequest(args)
 
 	queryResult, err := s.dataQueryRouter.Query(ctx, dataQueryRequest)
 	if err != nil {
@@ -118,42 +98,22 @@ func (s *DianshuService) DataSearch(ctx context.Context, request DataSearchArgs)
 		return nil, err
 	}
 
-	resultText, err := s.persistRawResult(dataQueryRequest, queryResult)
+	resultText, err := persistRawResult(dataQueryRequest, queryResult)
 	if err != nil {
 		return nil, err
 	}
 	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: resultText}}}, nil
 }
 
-func (s *DianshuService) buildDataQueryRequest(args DataSearchArgs) (dianshu.DataQueryRequest, error) {
-	trimmedQuery := strings.TrimSpace(args.Query)
-	if trimmedQuery == "" {
-		return dianshu.DataQueryRequest{}, fmt.Errorf("查询内容不能为空")
-	}
-
-	providerType := strings.TrimSpace(args.Provider)
-	if providerType == "" {
-		providerType = dianshu.ProviderTypeXiaohongshu
-	}
-	datasetType := strings.TrimSpace(args.Dataset)
-	if datasetType == "" {
-		datasetType = dianshu.DatasetTypeSearch
-	}
-	siteDomain := strings.TrimSpace(args.SiteDomain)
-	if siteDomain == "" {
-		siteDomain = dianshu.XiaohongshuSiteDomain
-	}
-
+func buildDataQueryRequest(args DataSearchArgs) dianshu.DataQueryRequest {
 	keyword := strings.TrimSpace(args.Keyword)
 	if keyword == "" {
-		keyword = trimmedQuery
+		keyword = strings.TrimSpace(args.Query)
 	}
-
 	page := strings.TrimSpace(args.Page)
 	if page == "" {
 		page = dianshu.XiaohongshuDefaultPage
 	}
-
 	endTime := strings.TrimSpace(args.EndTime)
 	if endTime == "" {
 		endTime = fmt.Sprintf("%d", time.Now().Unix())
@@ -164,20 +124,28 @@ func (s *DianshuService) buildDataQueryRequest(args DataSearchArgs) (dianshu.Dat
 	}
 
 	return dianshu.DataQueryRequest{
-		ProviderType: providerType,
-		DatasetType:  datasetType,
-		SiteDomain:   siteDomain,
+		ProviderType: pickString(args.Provider, dianshu.ProviderTypeXiaohongshu),
+		DatasetType:  pickString(args.Dataset, dianshu.DatasetTypeSearch),
+		SiteDomain:   pickString(args.SiteDomain, dianshu.XiaohongshuSiteDomain),
 		Body: map[string]string{
 			"startTime": startTime,
 			"endTime":   endTime,
 			"keyword":   keyword,
 			"page":      page,
 		},
-		RawQuery: trimmedQuery,
-	}, nil
+		RawQuery: strings.TrimSpace(args.Query),
+	}
 }
 
-func (s *DianshuService) persistRawResult(request dianshu.DataQueryRequest, result *dianshu.DataQueryResult) (string, error) {
+func pickString(value string, defaultVal string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return defaultVal
+	}
+	return value
+}
+
+func persistRawResult(queryReq dianshu.DataQueryRequest, result *dianshu.DataQueryResult) (string, error) {
 	if len(result.RawJSON) == 0 {
 		return "", fmt.Errorf("查询结果为空，无法写入 JSON 文件")
 	}
@@ -187,17 +155,17 @@ func (s *DianshuService) persistRawResult(request dianshu.DataQueryRequest, resu
 		return "", fmt.Errorf("创建输出目录失败: %w", err)
 	}
 
-	fileName := fmt.Sprintf("%s_%s_%s.json", request.ProviderType, request.DatasetType, time.Now().Format("20060102_150405"))
+	fileName := fmt.Sprintf("%s_%s_%s.json", queryReq.ProviderType, queryReq.DatasetType, time.Now().Format("20060102_150405"))
 	filePath := filepath.Join(outputDir, fileName)
 	if err := os.WriteFile(filePath, result.RawJSON, 0o644); err != nil {
 		return "", fmt.Errorf("写入查询结果文件失败: %w", err)
 	}
 
-	requestBodyJSON, err := json.MarshalIndent(request.Body, "", "  ")
+	requestBodyJSON, err := json.MarshalIndent(queryReq.Body, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("序列化查询参数失败: %w", err)
 	}
 
-	resultText := fmt.Sprintf("✅ 查询成功\n查询内容: %s\n\n数据源: %s/%s\n站点: %s\nDSSeqNo: %s\n结果状态: %d / %s\n查询参数:\n%s\n\n结果文件: %s\nMEDIA:%s", request.RawQuery, request.ProviderType, request.DatasetType, request.SiteDomain, result.DSSeqNo, result.ResultCode, result.ResultDesc, string(requestBodyJSON), filePath, filePath)
+	resultText := fmt.Sprintf("✅ 查询成功\n查询内容: %s\n\n数据源: %s/%s\n站点: %s\nDSSeqNo: %s\n结果状态: %d / %s\n查询参数:\n%s\n\n结果文件: %s\nMEDIA:%s", queryReq.RawQuery, queryReq.ProviderType, queryReq.DatasetType, queryReq.SiteDomain, result.DSSeqNo, result.ResultCode, result.ResultDesc, string(requestBodyJSON), filePath, filePath)
 	return resultText, nil
 }
