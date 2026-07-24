@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -173,6 +175,45 @@ func (c *APIClient) GetTaskDetail(ctx context.Context, id int) (*TaskItem, error
 		return nil, fmt.Errorf("查询任务详情失败: %s", result.ResultDesc)
 	}
 	return result.Data, nil
+}
+
+// DownloadFile 从典枢下载文件到本地路径。
+func DownloadFile(ctx context.Context, fileURL, destPath string) error {
+	url := "https://d.dianshudata.com/" + fileURL
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("创建下载请求失败: %w", err)
+	}
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Origin", "https://dianshudata.com")
+	req.Header.Set("Referer", "https://dianshudata.com/")
+	req.Header.Set("Accept", "*/*")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("下载失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		return fmt.Errorf("下载返回异常状态: %d", resp.StatusCode)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		return fmt.Errorf("创建下载目录失败: %w", err)
+	}
+	f, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("创建文件失败: %w", err)
+	}
+	defer f.Close()
+
+	written, err := io.Copy(f, resp.Body)
+	if err != nil {
+		return fmt.Errorf("写入文件失败: %w", err)
+	}
+	logrus.Infof("下载完成: %s (%d bytes)", destPath, written)
+	return nil
 }
 
 const dataAPIGateway = "https://data-api.dianshudata.com"

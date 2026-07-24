@@ -160,7 +160,15 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 		}),
 	)
 
-	logrus.Infof("Registered %d MCP tools", 13)
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "download_dataset", Description: "下载已购买的数据文件到本地 output/downloads/ 目录，需提供任务编码 taskCode", Annotations: &mcp.ToolAnnotations{Title: "Download Dataset", ReadOnlyHint: false}},
+		withPanicRecovery("download_dataset", func(ctx context.Context, req *mcp.CallToolRequest, args DownloadDatasetArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleDownloadDataset(ctx, args)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	logrus.Infof("Registered %d MCP tools", 14)
 }
 
 // convertToMCPResult 将自定义 MCPToolResult 转换为官方 SDK 格式

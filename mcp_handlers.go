@@ -293,3 +293,21 @@ func (s *AppServer) handleListMyDatasets(ctx context.Context, args DatasetSearch
 	}
 	return result
 }
+
+// handleDownloadDataset 下载已购买的数据文件。
+type DownloadDatasetArgs struct {
+	TaskCode string `json:"taskCode" jsonschema:"任务编码，必填，从 list_downloads 获取"`
+}
+
+func (s *AppServer) handleDownloadDataset(ctx context.Context, args DownloadDatasetArgs) *MCPToolResult {
+	logrus.Infof("MCP: 下载数据集 (taskCode=%s)", args.TaskCode)
+
+	result, err := s.dianshuService.DownloadDataset(ctx, args.TaskCode)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "下载失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+	return result
+}

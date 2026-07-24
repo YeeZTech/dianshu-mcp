@@ -315,6 +315,65 @@ func (s *DianshuService) ListMyDatasets(ctx context.Context, pageNo, pageSize in
 	}, nil
 }
 
+// DownloadDataset 根据 taskCode 下载已购买的数据文件到 output/downloads/。
+func (s *DianshuService) DownloadDataset(ctx context.Context, taskCode string) (*MCPToolResult, error) {
+	allCookies := cookies.GetAllCookies()
+	if len(allCookies) == 0 {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "❌ 未登录，请先使用 get_login_qrcode 扫码登录"}},
+			IsError: true,
+		}, nil
+	}
+	taskCode = strings.TrimSpace(taskCode)
+	if taskCode == "" {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "❌ 请提供任务编码 (taskCode)"}},
+			IsError: true,
+		}, nil
+	}
+
+	client := dianshu.NewAPIClient(allCookies)
+	tasks, err := client.ListTasks(ctx, 1, 100)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 查询订单列表失败: %v", err)}},
+			IsError: true,
+		}, nil
+	}
+
+	var target *dianshu.TaskItem
+	for i := range tasks {
+		if tasks[i].TaskCode == taskCode {
+			target = &tasks[i]
+			break
+		}
+	}
+	if target == nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 未找到任务编码为 %s 的订单", taskCode)}},
+			IsError: true,
+		}, nil
+	}
+	if target.FileURL == "" {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "❌ 该订单没有可下载的文件"}},
+			IsError: true,
+		}, nil
+	}
+
+	dest := filepath.Join("output", "downloads", target.FileURL)
+	absPath, _ := filepath.Abs(dest)
+	if err := dianshu.DownloadFile(ctx, target.FileURL, dest); err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 下载失败: %v", err)}},
+			IsError: true,
+		}, nil
+	}
+
+	resultText := fmt.Sprintf("✅ 下载成功\n\n数据集: %s\n任务编码: %s\n文件: %s\nMEDIA:%s", target.DatasetName, target.TaskCode, absPath, absPath)
+	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: resultText}}}, nil
+}
+
 // XhsSearch 执行小红书数据查询，查询结果写入 output/data-search/ 目录。
 func (s *DianshuService) XhsSearch(ctx context.Context, args DataSearchArgs) (*MCPToolResult, error) {
 	dataQueryRequest := buildDataQueryRequest(args)
