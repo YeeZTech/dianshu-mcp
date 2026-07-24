@@ -7,7 +7,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// setupRoutes 设置路由配置。
+// setupRoutes 设置路由配置
 func setupRoutes(appServer *AppServer) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
@@ -15,11 +15,14 @@ func setupRoutes(appServer *AppServer) *gin.Engine {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
+	// 中间件
 	router.Use(errorHandlingMiddleware())
 	router.Use(corsMiddleware())
 
+	// 健康检查
 	router.GET("/health", healthHandler)
 
+	// MCP 端点 - 使用官方 SDK 的 Streamable HTTP Handler
 	mcpHandler := mcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *mcp.Server {
 			return appServer.mcpServer
@@ -31,18 +34,20 @@ func setupRoutes(appServer *AppServer) *gin.Engine {
 	router.Any("/mcp", gin.WrapH(mcpHandler))
 	router.Any("/mcp/*path", gin.WrapH(mcpHandler))
 
+	// REST API 路由组（可选）
 	api := router.Group("/api/v1")
 	{
 		api.GET("/login/status", appServer.checkLoginStatusHandler)
 		api.GET("/login/qrcode", appServer.getLoginQRCodeHandler)
 		api.DELETE("/login/cookies", appServer.deleteCookiesHandler)
-		api.POST("/data/search", appServer.dataSearchHandler)
+		api.POST("/orders/query", appServer.listOrdersHandler)
+		api.POST("/data/search", appServer.xhsSearchHandler)
 	}
 
 	return router
 }
 
-// healthHandler 健康检查。
+// healthHandler 健康检查
 func healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":    "healthy",
@@ -52,7 +57,7 @@ func healthHandler(c *gin.Context) {
 	})
 }
 
-// errorHandlingMiddleware 错误处理中间件。
+// errorHandlingMiddleware 错误处理中间件
 func errorHandlingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
@@ -65,7 +70,7 @@ func errorHandlingMiddleware() gin.HandlerFunc {
 	}
 }
 
-// corsMiddleware CORS 中间件。
+// corsMiddleware CORS 中间件
 func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")

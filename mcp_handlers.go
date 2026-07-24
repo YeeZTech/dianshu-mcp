@@ -38,6 +38,60 @@ func (s *AppServer) handleCheckLoginStatus(ctx context.Context) *MCPToolResult {
 	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: "❌ 未登录\n请使用 get_login_qrcode 获取微信二维码并扫码登录。"}}}
 }
 
+// handleGetMyProfile 处理获取我的资料。
+func (s *AppServer) handleGetMyProfile(ctx context.Context) *MCPToolResult {
+	logrus.Info("MCP: 获取我的资料")
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	userInfo, err := s.dianshuService.GetMyProfile(ctx)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "获取我的资料失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+
+	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: formatMyProfileText(userInfo)}}}
+}
+
+// handleGetWalletBalance 处理获取我的钱包。
+func (s *AppServer) handleGetWalletBalance(ctx context.Context) *MCPToolResult {
+	logrus.Info("MCP: 获取我的钱包")
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	result, err := s.dianshuService.GetWalletBalance(ctx)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "获取我的钱包失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+
+	return result
+}
+
+// handleListWalletTransactions 处理获取交易明细。
+func (s *AppServer) handleListWalletTransactions(ctx context.Context, args WalletTransactionArgs) *MCPToolResult {
+	logrus.Infof("MCP: 获取交易明细 (pageNo=%d, pageSize=%d)", args.PageNo, args.PageSize)
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	result, err := s.dianshuService.ListWalletTransactions(ctx, dianshu.PageRequest{PageNo: args.PageNo, PageSize: args.PageSize})
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "获取交易明细失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+
+	return result
+}
+
 // handleGetLoginQRCode 处理获取登录并等待扫码。
 func (s *AppServer) handleGetLoginQRCode(ctx context.Context) *MCPToolResult {
 	logrus.Info("MCP: 获取登录二维码并等待扫码")
@@ -82,20 +136,57 @@ func (s *AppServer) handleDeleteCookies(ctx context.Context) *MCPToolResult {
 	return result
 }
 
-// handleDataSearch 处理数据查询。
-func (s *AppServer) handleDataSearch(ctx context.Context, args DataSearchArgs) *MCPToolResult {
-	logrus.Infof("MCP: 数据查询 (query=%s)", args.Query)
+// handleListOrders 处理查询订单列表。
+func (s *AppServer) handleListOrders(ctx context.Context, args ListOrdersArgs) *MCPToolResult {
+	logrus.Infof("MCP: 查询订单 (orderType=%d, orderCode=%s)", args.OrderType, args.OrderCode)
 
-	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	result, err := s.dianshuService.DataSearch(ctx, args)
+	result, err := s.dianshuService.QueryOrders(ctx, args.OrderType, args.OrderCode)
 	if err != nil {
 		return &MCPToolResult{
-			Content: []MCPContent{{Type: "text", Text: "数据查询失败: " + err.Error()}},
+			Content: []MCPContent{{Type: "text", Text: "查询订单失败: " + err.Error()}},
 			IsError: true,
 		}
 	}
+
+	return result
+}
+
+// handleListDownloads 处理列出可下载数据产品。
+func (s *AppServer) handleListDownloads(ctx context.Context) *MCPToolResult {
+	logrus.Info("MCP: 列出可下载数据产品")
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	result, err := s.dianshuService.ListDownloads(ctx)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "查询下载列表失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+
+	return result
+}
+
+// handleListPurchasedAPIs 处理列出已购买的 API 产品。
+func (s *AppServer) handleListPurchasedAPIs(ctx context.Context) *MCPToolResult {
+	logrus.Info("MCP: 列出已购买的 API 产品")
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	result, err := s.dianshuService.ListPurchasedAPIs(ctx)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "查询 API 产品失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+
 	return result
 }
 
@@ -136,4 +227,21 @@ func formatMyProfileText(userInfo *dianshu.UserInfo) string {
 	}
 
 	return fmt.Sprintf("👤 我的资料\n我的昵称: %s\n典枢号: %s\n卖家介绍: %s\n我的AppCode: %s", nickname, dsUserNo, description, appCode)
+}
+
+// handleDataSearch 处理数据查询。
+func (s *AppServer) handleXhsSearch(ctx context.Context, args DataSearchArgs) *MCPToolResult {
+	logrus.Infof("MCP: 数据查询 (query=%s)", args.Query)
+
+	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+
+	result, err := s.dianshuService.XhsSearch(ctx, args)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "数据查询失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+	return result
 }

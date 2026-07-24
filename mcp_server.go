@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// InitMCPServer 初始化 MCP Server。
+// InitMCPServer 初始化 MCP Server
 func InitMCPServer(appServer *AppServer) *mcp.Server {
 	server := mcp.NewServer(
 		&mcp.Implementation{
@@ -25,7 +25,13 @@ func InitMCPServer(appServer *AppServer) *mcp.Server {
 	return server
 }
 
-func boolPtr(value bool) *bool { return &value }
+func boolPtr(b bool) *bool { return &b }
+
+// ListOrdersArgs 查询订单参数
+type ListOrdersArgs struct {
+	OrderType int    `json:"orderType" jsonschema:"订单类型：0-全部(默认)，1-数据集，2-API"`
+	OrderCode string `json:"orderCode,omitempty" jsonschema:"订单编号（可选），留空查询所有订单"`
+}
 
 func withPanicRecovery[T any](
 	toolName string,
@@ -33,8 +39,8 @@ func withPanicRecovery[T any](
 ) func(context.Context, *mcp.CallToolRequest, T) (*mcp.CallToolResult, any, error) {
 	return func(ctx context.Context, req *mcp.CallToolRequest, args T) (result *mcp.CallToolResult, resp any, err error) {
 		defer func() {
-			if recovered := recover(); recovered != nil {
-				logrus.WithFields(logrus.Fields{"tool": toolName, "panic": recovered}).Error("Tool handler panicked")
+			if r := recover(); r != nil {
+				logrus.WithFields(logrus.Fields{"tool": toolName, "panic": r}).Error("Tool handler panicked")
 				logrus.Errorf("Stack trace:\n%s", debug.Stack())
 				result = &mcp.CallToolResult{
 					Content: []mcp.Content{&mcp.TextContent{Text: "工具 " + toolName + " 执行时发生内部错误，请查看服务端日志。"}},
@@ -48,7 +54,7 @@ func withPanicRecovery[T any](
 	}
 }
 
-// registerTools 注册所有 MCP 工具。
+// registerTools 注册所有 MCP 工具
 func registerTools(server *mcp.Server, appServer *AppServer) {
 	mcp.AddTool(server,
 		&mcp.Tool{Name: "check_login_status", Description: "检查典枢平台的登录状态", Annotations: &mcp.ToolAnnotations{Title: "Check Login Status", ReadOnlyHint: true}},
@@ -75,30 +81,78 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 	)
 
 	mcp.AddTool(server,
-		&mcp.Tool{Name: "data_search", Description: "数据查询入口，例如：查询一下小红书里关于鸡腿的内容", Annotations: &mcp.ToolAnnotations{Title: "Data Search", ReadOnlyHint: true}},
-		withPanicRecovery("data_search", func(ctx context.Context, req *mcp.CallToolRequest, args DataSearchArgs) (*mcp.CallToolResult, any, error) {
-			result := appServer.handleDataSearch(ctx, args)
+		&mcp.Tool{Name: "list_orders", Description: "查询典枢平台的订单列表，支持按类型和订单编号筛选", Annotations: &mcp.ToolAnnotations{Title: "List Orders", ReadOnlyHint: true}},
+		withPanicRecovery("list_orders", func(ctx context.Context, req *mcp.CallToolRequest, args ListOrdersArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleListOrders(ctx, args)
 			return convertToMCPResult(result), nil, nil
 		}),
 	)
 
-	logrus.Infof("Registered %d MCP tools", 4)
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "list_downloads", Description: "列出已购买的典枢数据产品及下载信息", Annotations: &mcp.ToolAnnotations{Title: "List Downloads", ReadOnlyHint: true}},
+		withPanicRecovery("list_downloads", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleListDownloads(ctx)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "list_purchased_apis", Description: "列出已购买的典枢 API 产品及调用信息", Annotations: &mcp.ToolAnnotations{Title: "List Purchased APIs", ReadOnlyHint: true}},
+		withPanicRecovery("list_purchased_apis", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleListPurchasedAPIs(ctx)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "get_my_profile", Description: "获取当前登录账号的资料信息", Annotations: &mcp.ToolAnnotations{Title: "Get My Profile", ReadOnlyHint: true}},
+		withPanicRecovery("get_my_profile", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleGetMyProfile(ctx)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "get_my_wallet", Description: "获取当前登录账号的钱包余额信息", Annotations: &mcp.ToolAnnotations{Title: "Get My Wallet", ReadOnlyHint: true}},
+		withPanicRecovery("get_my_wallet", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleGetWalletBalance(ctx)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "list_wallet_transactions", Description: "查询钱包交易明细，支持分页", Annotations: &mcp.ToolAnnotations{Title: "List Wallet Transactions", ReadOnlyHint: true}},
+		withPanicRecovery("list_wallet_transactions", func(ctx context.Context, req *mcp.CallToolRequest, args WalletTransactionArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleListWalletTransactions(ctx, args)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "xhs_search", Description: "小红书数据搜索查询", Annotations: &mcp.ToolAnnotations{Title: "XHS Search", ReadOnlyHint: true}},
+		withPanicRecovery("xhs_search", func(ctx context.Context, req *mcp.CallToolRequest, args DataSearchArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleXhsSearch(ctx, args)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	logrus.Infof("Registered %d MCP tools", 10)
 }
 
-// convertToMCPResult 将自定义 MCPToolResult 转换为官方 SDK 格式。
+// convertToMCPResult 将自定义 MCPToolResult 转换为官方 SDK 格式
 func convertToMCPResult(result *MCPToolResult) *mcp.CallToolResult {
 	var contents []mcp.Content
-	for _, content := range result.Content {
-		switch content.Type {
+	for _, c := range result.Content {
+		switch c.Type {
 		case "text":
-			contents = append(contents, &mcp.TextContent{Text: content.Text})
+			contents = append(contents, &mcp.TextContent{Text: c.Text})
 		case "image":
-			imageData, err := base64.StdEncoding.DecodeString(content.Data)
+			imageData, err := base64.StdEncoding.DecodeString(c.Data)
 			if err != nil {
 				logrus.WithError(err).Error("Failed to decode base64 image data")
 				contents = append(contents, &mcp.TextContent{Text: "图片数据解码失败: " + err.Error()})
 			} else {
-				contents = append(contents, &mcp.ImageContent{Data: imageData, MIMEType: content.MimeType})
+				contents = append(contents, &mcp.ImageContent{Data: imageData, MIMEType: c.MimeType})
 			}
 		}
 	}

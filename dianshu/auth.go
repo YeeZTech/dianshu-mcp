@@ -149,3 +149,30 @@ func CheckLoginStatus(ctx context.Context, cookies map[string]string) (*LoginChe
 		UserInfo: userInfo,
 	}, nil
 }
+
+// GetLoginQRCodeOnly 仅获取二维码截图，不等待扫码。
+func GetLoginQRCodeOnly(ctx context.Context, headless bool) ([]byte, string, error) {
+	browser, err := NewBrowser(ctx, headless)
+	if err != nil {
+		return nil, "", fmt.Errorf("启动浏览器失败: %w", err)
+	}
+	defer browser.Close()
+
+	page, err := NewPage(browser)
+	if err != nil {
+		return nil, "", fmt.Errorf("创建页面失败: %w", err)
+	}
+	defer page.Close()
+
+	if err := page.Navigate(WeChatQRLoginURL); err != nil {
+		return nil, "", fmt.Errorf("打开微信二维码页失败: %w", err)
+	}
+	time.Sleep(5 * time.Second)
+
+	screenshot, err := page.Screenshot(true, nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("截图失败: %w", err)
+	}
+
+	return screenshot, "请使用微信扫描二维码登录典枢平台\n二维码有效期约 5 分钟", nil
+}

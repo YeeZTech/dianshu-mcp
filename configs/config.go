@@ -1,6 +1,8 @@
 package configs
 
-import "os"
+import (
+	"os"
+)
 
 var (
 	headlessMode bool
@@ -10,6 +12,14 @@ var (
 const (
 	// DefaultPort 默认服务端口
 	DefaultPort = ":18061"
+	// BaseAPIURL 典枢平台 API 地址
+	BaseAPIURL = "https://api.dianshudata.com"
+	// SSOURL 单点登录地址
+	SSOURL = "https://sso.dianshudata.com"
+	// MainSiteURL 主站地址
+	MainSiteURL = "https://dianshudata.com"
+	// LoginURL 登录页面
+	LoginURL = "https://dianshudata.com/login"
 	// CookieFileName cookie 文件名
 	CookieFileName = "cookies.json"
 )

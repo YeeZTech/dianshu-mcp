@@ -66,8 +66,8 @@ func TestPersistRawResult(t *testing.T) {
 		if !strings.Contains(text, "结果文件:") {
 			t.Fatalf("返回文案未包含结果文件路径: %s", text)
 		}
-		if !strings.Contains(text, "MEDIA:") {
-			t.Fatalf("返回文案未包含 MEDIA 路径: %s", text)
+		if !strings.Contains(text, rawJSON) {
+			t.Fatalf("返回文案未包含原始 JSON 内容: %s", text)
 		}
 	})
 }
