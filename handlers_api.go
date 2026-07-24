@@ -121,3 +121,18 @@ func (s *AppServer) homepageRecommendHandler(c *gin.Context) {
 	}
 	respondSuccess(c, result, "获取首页推荐成功")
 }
+
+// listMyDatasetsHandler 获取我的数据集列表。
+func (s *AppServer) listMyDatasetsHandler(c *gin.Context) {
+	var request DatasetSearchArgs
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "INVALID_REQUEST", "请求参数错误", err.Error())
+		return
+	}
+	result, err := s.dianshuService.ListMyDatasets(c.Request.Context(), request.PageNo, request.PageSize)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "MY_DATASETS_FAILED", "获取我的数据集列表失败", err.Error())
+		return
+	}
+	respondSuccess(c, result, "获取我的数据集列表成功")
+}

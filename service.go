@@ -287,6 +287,34 @@ func (s *DianshuService) GetHomepageRecommend(ctx context.Context) (*MCPToolResu
 	}, nil
 }
 
+// ListMyDatasets 获取我的数据集列表。
+func (s *DianshuService) ListMyDatasets(ctx context.Context, pageNo, pageSize int) (*MCPToolResult, error) {
+	allCookies := cookies.GetAllCookies()
+	if len(allCookies) == 0 {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "❌ 未登录，请先使用 get_login_qrcode 扫码登录"}},
+			IsError: true,
+		}, nil
+	}
+	if pageNo <= 0 {
+		pageNo = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 12
+	}
+	client := dianshu.NewAPIClient(allCookies)
+	result, err := client.ListMyDatasets(ctx, pageNo, pageSize)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 获取我的数据集列表失败: %v", err)}},
+			IsError: true,
+		}, nil
+	}
+	return &MCPToolResult{
+		Content: []MCPContent{{Type: "text", Text: formatMyDatasetList(result)}},
+	}, nil
+}
+
 // XhsSearch 执行小红书数据查询，查询结果写入 output/data-search/ 目录。
 func (s *DianshuService) XhsSearch(ctx context.Context, args DataSearchArgs) (*MCPToolResult, error) {
 	dataQueryRequest := buildDataQueryRequest(args)
@@ -591,6 +619,30 @@ func formatHomepageRecommendResult(resp *dianshu.HomepageRecommendResponse) stri
 		if len(block.Details) > maxItems {
 			sb.WriteString(fmt.Sprintf("  ... 其余 %d 条未展开\n", len(block.Details)-maxItems))
 		}
+	}
+	return sb.String()
+}
+
+func formatMyDatasetList(result *dianshu.MyDatasetListResponse) string {
+	if result == nil || len(result.Data) == 0 {
+		return "你还没有发布过数据集"
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("📦 我的数据集（第 %d/%d 页，共 %d 个）\n", result.Page.PageNo, result.Page.TotalPage, result.Page.Count))
+	for i, item := range result.Data {
+		statusText := "未知"
+		switch item.Status {
+		case 1:
+			statusText = "审核中"
+		case 2:
+			statusText = "已发布"
+		case 3:
+			statusText = "已下架"
+		}
+		t := time.UnixMilli(item.CreateTime).Format("2006-01-02 15:04")
+		sb.WriteString(fmt.Sprintf("\n【%d】%s\n", i+1, item.DatasetName))
+		sb.WriteString(fmt.Sprintf("价格: ¥%.2f | 状态: %s | %s\n", item.Price, statusText, t))
+		sb.WriteString(fmt.Sprintf("编码: %s\n", item.DatasetCode))
 	}
 	return sb.String()
 }

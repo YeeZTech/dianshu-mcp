@@ -279,3 +279,17 @@ func (s *AppServer) handleHomepageRecommend(ctx context.Context) *MCPToolResult 
 	}
 	return result
 }
+
+// handleListMyDatasets 获取我的数据集列表。
+func (s *AppServer) handleListMyDatasets(ctx context.Context, args DatasetSearchArgs) *MCPToolResult {
+	logrus.Infof("MCP: 我的数据集列表 (pageNo=%d)", args.PageNo)
+
+	result, err := s.dianshuService.ListMyDatasets(ctx, args.PageNo, args.PageSize)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "获取我的数据集列表失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+	return result
+}

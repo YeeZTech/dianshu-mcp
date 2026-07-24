@@ -152,7 +152,15 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 		}),
 	)
 
-	logrus.Infof("Registered %d MCP tools", 12)
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "my_datasets", Description: "获取我在典枢平台上发布的数据集列表", Annotations: &mcp.ToolAnnotations{Title: "My Datasets", ReadOnlyHint: true}},
+		withPanicRecovery("my_datasets", func(ctx context.Context, req *mcp.CallToolRequest, args DatasetSearchArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleListMyDatasets(ctx, args)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	logrus.Infof("Registered %d MCP tools", 13)
 }
 
 // convertToMCPResult 将自定义 MCPToolResult 转换为官方 SDK 格式

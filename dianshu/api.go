@@ -311,6 +311,30 @@ func (c *APIClient) doRequest(ctx context.Context, method, path string, body int
 	return resp, nil
 }
 
+// ListMyDatasets 获取我的数据集列表
+func (c *APIClient) ListMyDatasets(ctx context.Context, pageNo, pageSize int) (*MyDatasetListResponse, error) {
+	reqBody := map[string]interface{}{
+		"pageNo":         pageNo,
+		"pageSize":       pageSize,
+		"moderationFlag": "Y",
+	}
+	resp, err := c.doRequest(ctx, "POST", "/system/dataset/datasetList", reqBody)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var result MyDatasetListResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析我的数据集列表响应失败: %w", err)
+	}
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("获取我的数据集列表失败: %s", result.ResultDesc)
+	}
+	return &result, nil
+}
+
 // doRequestToGateway 向指定网关发送请求（支持多网关）
 func (c *APIClient) doRequestToGateway(ctx context.Context, method, gateway, path string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader

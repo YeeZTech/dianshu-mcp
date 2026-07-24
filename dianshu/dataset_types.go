@@ -73,3 +73,23 @@ type HomepageRecommendResponse struct {
 		} `json:"queryRecommend"`
 	} `json:"data"`
 }
+
+// MyDatasetItem 我的数据集列表项
+type MyDatasetItem struct {
+	ID                 int     `json:"id"`
+	IsAssessmentReport int     `json:"isAssessmentReport"`
+	DatasetName        string  `json:"datasetName"`
+	Price              float64 `json:"price"`
+	DatasetCode        string  `json:"datasetCode"`
+	CreateTime         int64   `json:"createTime"`
+	Status             int     `json:"status"`
+	SecurityLevel      string  `json:"securityLevel"`
+}
+
+// MyDatasetListResponse 我的数据集列表响应
+type MyDatasetListResponse struct {
+	ResultCode int             `json:"resultCode"`
+	ResultDesc string          `json:"resultDesc"`
+	Data       []MyDatasetItem `json:"data"`
+	Page       PageInfo        `json:"page"`
+}
