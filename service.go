@@ -272,6 +272,21 @@ func (s *DianshuService) SearchDatasets(ctx context.Context, keyword string, pag
 	}, nil
 }
 
+// GetHomepageRecommend 获取典枢首页推荐数据。
+func (s *DianshuService) GetHomepageRecommend(ctx context.Context) (*MCPToolResult, error) {
+	result, err := dianshu.GetHomepageRecommend(ctx)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 获取首页推荐失败: %v", err)}},
+			IsError: true,
+		}, nil
+	}
+
+	return &MCPToolResult{
+		Content: []MCPContent{{Type: "text", Text: formatHomepageRecommendResult(result)}},
+	}, nil
+}
+
 // XhsSearch 执行小红书数据查询，查询结果写入 output/data-search/ 目录。
 func (s *DianshuService) XhsSearch(ctx context.Context, args DataSearchArgs) (*MCPToolResult, error) {
 	dataQueryRequest := buildDataQueryRequest(args)
@@ -531,4 +546,51 @@ func formatFileSize(size float64) string {
 	}
 	size /= unit
 	return fmt.Sprintf("%.1f MB", size)
+}
+
+func formatHomepageRecommendResult(resp *dianshu.HomepageRecommendResponse) string {
+	if resp == nil || len(resp.Data.QueryRecommend.Data) == 0 {
+		return "暂无首页推荐数据"
+	}
+
+	var sb strings.Builder
+	sb.WriteString("🏠 典枢首页推荐数据\n")
+
+	blocks := resp.Data.QueryRecommend.Data
+	for _, block := range blocks {
+		if len(block.Details) == 0 {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("\n📌 %s\n", block.Name))
+
+		maxItems := len(block.Details)
+		if maxItems > 5 {
+			maxItems = 5
+		}
+		for i := 0; i < maxItems; i++ {
+			d := block.Details[i]
+			name := d.Name
+			if d.DatasetName != nil && *d.DatasetName != "" {
+				name = *d.DatasetName
+			}
+			sb.WriteString(fmt.Sprintf("  %d. %s\n", i+1, name))
+			if d.Description != "" {
+				desc := d.Description
+				if len(desc) > 80 {
+					desc = desc[:80] + "..."
+				}
+				sb.WriteString(fmt.Sprintf("     %s\n", desc))
+			}
+			if d.Price != nil && *d.Price != "" {
+				sb.WriteString(fmt.Sprintf("     价格: ¥%s\n", *d.Price))
+			}
+			if d.Pattern != nil && *d.Pattern != "" {
+				sb.WriteString(fmt.Sprintf("     格式: %s\n", *d.Pattern))
+			}
+		}
+		if len(block.Details) > maxItems {
+			sb.WriteString(fmt.Sprintf("  ... 其余 %d 条未展开\n", len(block.Details)-maxItems))
+		}
+	}
+	return sb.String()
 }

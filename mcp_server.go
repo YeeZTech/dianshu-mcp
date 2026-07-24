@@ -144,7 +144,15 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 		}),
 	)
 
-	logrus.Infof("Registered %d MCP tools", 11)
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "homepage_recommend", Description: "获取典枢平台首页推荐数据，包括热门数据集、高分数据集、API接口等推荐区块", Annotations: &mcp.ToolAnnotations{Title: "Homepage Recommend", ReadOnlyHint: true}},
+		withPanicRecovery("homepage_recommend", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleHomepageRecommend(ctx)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	logrus.Infof("Registered %d MCP tools", 12)
 }
 
 // convertToMCPResult 将自定义 MCPToolResult 转换为官方 SDK 格式

@@ -196,6 +196,46 @@ func (c *APIClient) GetAPIDetail(ctx context.Context, apiID int) (*APIDetail, er
 	return result.Data, nil
 }
 
+// GetHomepageRecommend 获取典枢首页推荐数据
+func GetHomepageRecommend(ctx context.Context) (*HomepageRecommendResponse, error) {
+	reqBody := map[string]interface{}{
+		"query": `query QueryRecommend($typeList: [Int!]!, $limit: Int) { queryRecommend(dto: { typeList: $typeList, limit: $limit }) { resultCode resultDesc data { id type name details { id name description imageBgUrl imageFrontUrl hrefUrl datasetId datasetName price pattern securityLevel } } } }`,
+		"variables": map[string]interface{}{
+			"typeList": []int{1, 2, 3, 4},
+			"limit":    9,
+		},
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("序列化请求体失败: %w", err)
+	}
+
+	url := baseAPIURL + "/graphql"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Origin", "https://dianshudata.com")
+	req.Header.Set("Referer", "https://dianshudata.com/")
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var result HomepageRecommendResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析首页推荐响应失败: %w", err)
+	}
+	return &result, nil
+}
+
 // SearchDatasets 典枢平台数据集搜索
 func (c *APIClient) SearchDatasets(ctx context.Context, keyword string, pageNo, pageSize int) (*DatasetSearchResponse, error) {
 	reqBody := map[string]interface{}{

@@ -111,3 +111,13 @@ func (s *AppServer) datasetSearchHandler(c *gin.Context) {
 	}
 	respondSuccess(c, result, "数据集搜索成功")
 }
+
+// homepageRecommendHandler 获取典枢首页推荐数据。
+func (s *AppServer) homepageRecommendHandler(c *gin.Context) {
+	result, err := s.dianshuService.GetHomepageRecommend(c.Request.Context())
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "HOMEPAGE_RECOMMEND_FAILED", "获取首页推荐失败", err.Error())
+		return
+	}
+	respondSuccess(c, result, "获取首页推荐成功")
+}

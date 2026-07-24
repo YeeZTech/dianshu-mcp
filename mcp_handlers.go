@@ -265,3 +265,17 @@ func (s *AppServer) handleDatasetSearch(ctx context.Context, args DatasetSearchA
 	}
 	return result
 }
+
+// handleHomepageRecommend 获取典枢首页推荐数据。
+func (s *AppServer) handleHomepageRecommend(ctx context.Context) *MCPToolResult {
+	logrus.Info("MCP: 获取典枢首页推荐数据")
+
+	result, err := s.dianshuService.GetHomepageRecommend(ctx)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "获取首页推荐失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+	return result
+}

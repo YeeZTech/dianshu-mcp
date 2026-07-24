@@ -43,6 +43,7 @@ func setupRoutes(appServer *AppServer) *gin.Engine {
 		api.POST("/orders/query", appServer.listOrdersHandler)
 		api.POST("/data/search", appServer.xhsSearchHandler)
 		api.POST("/dataset/search", appServer.datasetSearchHandler)
+		api.GET("/homepage/recommend", appServer.homepageRecommendHandler)
 	}
 
 	return router

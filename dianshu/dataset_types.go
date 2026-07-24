@@ -39,3 +39,37 @@ type DatasetSearchResponse struct {
 	Data       []DatasetItem `json:"data"`
 	Page       PageInfo      `json:"page"`
 }
+
+// RecommendDetail 首页推荐区块中的数据集条目
+type RecommendDetail struct {
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	Description   string  `json:"description"`
+	ImageBgURL    string  `json:"imageBgUrl"`
+	ImageFrontURL *string `json:"imageFrontUrl"`
+	HrefURL       *string `json:"hrefUrl"`
+	DatasetID     string  `json:"datasetId"`
+	DatasetName   *string `json:"datasetName"`
+	Price         *string `json:"price"`
+	Pattern       *string `json:"pattern"`
+	SecurityLevel *string `json:"securityLevel"`
+}
+
+// RecommendBlock 首页推荐区块
+type RecommendBlock struct {
+	ID      string            `json:"id"`
+	Type    int               `json:"type"`
+	Name    string            `json:"name"`
+	Details []RecommendDetail `json:"details"`
+}
+
+// HomepageRecommendResponse 首页推荐 GraphQL 响应
+type HomepageRecommendResponse struct {
+	Data struct {
+		QueryRecommend struct {
+			ResultCode int              `json:"resultCode"`
+			ResultDesc string           `json:"resultDesc"`
+			Data       []RecommendBlock `json:"data"`
+		} `json:"queryRecommend"`
+	} `json:"data"`
+}
