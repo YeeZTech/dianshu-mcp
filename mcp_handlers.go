@@ -245,3 +245,23 @@ func (s *AppServer) handleXhsSearch(ctx context.Context, args DataSearchArgs) *M
 	}
 	return result
 }
+
+// handleDatasetSearch 处理典枢数据集搜索。
+type DatasetSearchArgs struct {
+	Keyword  string `json:"keyword" jsonschema:"搜索关键词，必填"`
+	PageNo   int    `json:"pageNo,omitempty" jsonschema:"页码，可选，默认 1"`
+	PageSize int    `json:"pageSize,omitempty" jsonschema:"每页条数，可选，默认 20"`
+}
+
+func (s *AppServer) handleDatasetSearch(ctx context.Context, args DatasetSearchArgs) *MCPToolResult {
+	logrus.Infof("MCP: 典枢数据集搜索 (keyword=%s)", args.Keyword)
+
+	result, err := s.dianshuService.SearchDatasets(ctx, args.Keyword, args.PageNo, args.PageSize)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "数据集搜索失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+	return result
+}

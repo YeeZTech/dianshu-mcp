@@ -95,3 +95,19 @@ func (s *AppServer) xhsSearchHandler(c *gin.Context) {
 	}
 	respondSuccess(c, result, "数据查询成功")
 }
+
+// datasetSearchHandler 典枢数据集搜索。
+func (s *AppServer) datasetSearchHandler(c *gin.Context) {
+	var request DatasetSearchArgs
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "INVALID_REQUEST", "请求参数错误", err.Error())
+		return
+	}
+
+	result, err := s.dianshuService.SearchDatasets(c.Request.Context(), request.Keyword, request.PageNo, request.PageSize)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "DATASET_SEARCH_FAILED", "数据集搜索失败", err.Error())
+		return
+	}
+	respondSuccess(c, result, "数据集搜索成功")
+}

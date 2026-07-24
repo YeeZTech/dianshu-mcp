@@ -241,6 +241,37 @@ func (s *DianshuService) DeleteCookies(ctx context.Context) (*MCPToolResult, err
 	}, nil
 }
 
+// SearchDatasets 典枢平台数据集搜索。
+func (s *DianshuService) SearchDatasets(ctx context.Context, keyword string, pageNo, pageSize int) (*MCPToolResult, error) {
+	allCookies := cookies.GetAllCookies()
+	if len(allCookies) == 0 {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "❌ 未登录，请先使用 get_login_qrcode 扫码登录"}},
+			IsError: true,
+		}, nil
+	}
+
+	if pageNo <= 0 {
+		pageNo = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+
+	client := dianshu.NewAPIClient(allCookies)
+	result, err := client.SearchDatasets(ctx, keyword, pageNo, pageSize)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 搜索数据集失败: %v", err)}},
+			IsError: true,
+		}, nil
+	}
+
+	return &MCPToolResult{
+		Content: []MCPContent{{Type: "text", Text: formatDatasetSearchResult(result)}},
+	}, nil
+}
+
 // XhsSearch 执行小红书数据查询，查询结果写入 output/data-search/ 目录。
 func (s *DianshuService) XhsSearch(ctx context.Context, args DataSearchArgs) (*MCPToolResult, error) {
 	dataQueryRequest := buildDataQueryRequest(args)
@@ -456,4 +487,48 @@ func defaultText(v string) string {
 		return "-"
 	}
 	return v
+}
+
+func formatDatasetSearchResult(result *dianshu.DatasetSearchResponse) string {
+	if result == nil || len(result.Data) == 0 {
+		return "未找到匹配的数据集"
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("🔍 搜索结果（第 %d/%d 页，共 %d 条）\n", result.Page.PageNo, result.Page.TotalPage, result.Page.Count))
+
+	maxItems := len(result.Data)
+	if maxItems > 10 {
+		maxItems = 10
+	}
+
+	for i := 0; i < maxItems; i++ {
+		item := result.Data[i]
+		sb.WriteString(fmt.Sprintf("\n\n【%d】%s\n", i+1, item.DatasetName))
+		sb.WriteString(fmt.Sprintf("价格: ¥%.2f\n", item.Price))
+		sb.WriteString(fmt.Sprintf("格式: %s\n", defaultText(item.Pattern)))
+		sb.WriteString(fmt.Sprintf("大小: %s\n", formatFileSize(float64(item.DatasetSize))))
+		sb.WriteString(fmt.Sprintf("卖家: %s\n", defaultText(item.CreateCompanyName)))
+		sb.WriteString(fmt.Sprintf("标签: %s\n", defaultText(item.Tag)))
+		sb.WriteString(fmt.Sprintf("销量: %s\n", defaultText(item.SalesVolume)))
+		sb.WriteString(fmt.Sprintf("数据集编码: %s\n", item.DatasetCode))
+	}
+
+	if len(result.Data) > maxItems {
+		sb.WriteString(fmt.Sprintf("\n\n...... 其余 %d 条未展开", len(result.Data)-maxItems))
+	}
+	return sb.String()
+}
+
+func formatFileSize(size float64) string {
+	const unit = 1024.0
+	if size < unit {
+		return fmt.Sprintf("%.0f B", size)
+	}
+	size /= unit
+	if size < unit {
+		return fmt.Sprintf("%.1f KB", size)
+	}
+	size /= unit
+	return fmt.Sprintf("%.1f MB", size)
 }

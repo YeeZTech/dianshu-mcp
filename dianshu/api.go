@@ -196,6 +196,32 @@ func (c *APIClient) GetAPIDetail(ctx context.Context, apiID int) (*APIDetail, er
 	return result.Data, nil
 }
 
+// SearchDatasets 典枢平台数据集搜索
+func (c *APIClient) SearchDatasets(ctx context.Context, keyword string, pageNo, pageSize int) (*DatasetSearchResponse, error) {
+	reqBody := map[string]interface{}{
+		"name":     keyword,
+		"order":    "",
+		"orderBy":  "",
+		"pageNo":   pageNo,
+		"pageSize": pageSize,
+	}
+	resp, err := c.doRequest(ctx, "POST", "/dataset/datasetListRight", reqBody)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var result DatasetSearchResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析数据集搜索响应失败: %w", err)
+	}
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("搜索数据集失败: %s", result.ResultDesc)
+	}
+	return &result, nil
+}
+
 func (c *APIClient) doRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader
 	if body != nil {
