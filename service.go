@@ -190,7 +190,7 @@ func (s *DianshuService) ListPurchasedAPIs(ctx context.Context) (*MCPToolResult,
 	}
 
 	client := dianshu.NewAPIClient(allCookies)
-	tasks, err := client.ListTasks(ctx, 1, 50)
+	result, err := client.ListPurchasedAPIs(ctx, 1, 50)
 	if err != nil {
 		return &MCPToolResult{
 			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 查询 API 产品失败: %v", err)}},
@@ -198,14 +198,7 @@ func (s *DianshuService) ListPurchasedAPIs(ctx context.Context) (*MCPToolResult,
 		}, nil
 	}
 
-	var apiTasks []dianshu.TaskItem
-	for _, task := range tasks {
-		if task.APIType == 1 || (task.FileURL == "" && task.DatasetID > 0) {
-			apiTasks = append(apiTasks, task)
-		}
-	}
-
-	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: formatPurchasedAPIList(apiTasks)}}}, nil
+	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: formatPurchasedAPIListV2(result)}}}, nil
 }
 
 // GetQRCodeOnly 仅获取二维码图片（不等待登录）。
@@ -702,6 +695,22 @@ func formatMyDatasetList(result *dianshu.MyDatasetListResponse) string {
 		sb.WriteString(fmt.Sprintf("\n【%d】%s\n", i+1, item.DatasetName))
 		sb.WriteString(fmt.Sprintf("价格: ¥%.2f | 状态: %s | %s\n", item.Price, statusText, t))
 		sb.WriteString(fmt.Sprintf("编码: %s\n", item.DatasetCode))
+	}
+	return sb.String()
+}
+
+func formatPurchasedAPIListV2(result *dianshu.PurchasedAPIListResponse) string {
+	if result == nil || len(result.Data) == 0 {
+		return "暂无已购买的 API 产品"
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("🔌 已购买 API 产品（第 %d/%d 页，共 %d 个）\n", result.Page.PageNo, result.Page.TotalPage, result.Page.Count))
+	for i, item := range result.Data {
+		sb.WriteString(fmt.Sprintf("\n【%d】%s\n", i+1, item.APIName))
+		sb.WriteString(fmt.Sprintf("API 编码: %s\n", item.APICode))
+		sb.WriteString(fmt.Sprintf("调用次数: %s\n", item.Usage))
+		sb.WriteString(fmt.Sprintf("购买时间: %s\n", item.CreateTime))
 	}
 	return sb.String()
 }

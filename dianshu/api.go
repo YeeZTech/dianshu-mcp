@@ -303,6 +303,29 @@ func (c *APIClient) SearchDatasets(ctx context.Context, keyword string, pageNo, 
 	return &result, nil
 }
 
+// ListPurchasedAPIs 获取已购买的 API 产品列表
+func (c *APIClient) ListPurchasedAPIs(ctx context.Context, pageNo, pageSize int) (*PurchasedAPIListResponse, error) {
+	reqBody := map[string]interface{}{
+		"pageNo":   pageNo,
+		"pageSize": pageSize,
+	}
+	resp, err := c.doRequestToGateway(ctx, "POST", dataAPIGateway, "/api/getBuyerApi", reqBody)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var result PurchasedAPIListResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析已购买 API 列表响应失败: %w", err)
+	}
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("查询已购买 API 列表失败: %s", result.ResultDesc)
+	}
+	return &result, nil
+}
+
 func (c *APIClient) doRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader
 	if body != nil {

@@ -203,3 +203,23 @@ type APIDetailResponse struct {
 	ResultDesc string     `json:"resultDesc"`
 	Data       *APIDetail `json:"data"`
 }
+
+// PurchasedAPIItem 已购买 API 列表项（来自 data-api getBuyerApi）
+type PurchasedAPIItem struct {
+	APIID          int    `json:"apiId"`
+	APICode        string `json:"apiCode"`
+	APIName        string `json:"apiName"`
+	CreateUser     string `json:"createUser"`
+	CreateTime     string `json:"createTime"`
+	Frequency      int    `json:"frequency"`
+	RemainingTimes int    `json:"remainingTimes"`
+	Usage          string `json:"usage"`
+}
+
+// PurchasedAPIListResponse 已购买 API 列表响应
+type PurchasedAPIListResponse struct {
+	ResultCode int                `json:"resultCode"`
+	ResultDesc string             `json:"resultDesc"`
+	Data       []PurchasedAPIItem `json:"data"`
+	Page       PageInfo           `json:"page"`
+}
