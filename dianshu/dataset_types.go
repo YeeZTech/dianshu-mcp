@@ -93,3 +93,31 @@ type MyDatasetListResponse struct {
 	Data       []MyDatasetItem `json:"data"`
 	Page       PageInfo        `json:"page"`
 }
+
+// DatasetDetail 数据集详情
+type DatasetDetail struct {
+	ID                int            `json:"id"`
+	DatasetCode       string         `json:"datasetCode"`
+	DatasetName       string         `json:"datasetName"`
+	Price             float64        `json:"price"`
+	OriginalPrice     float64        `json:"originalPrice"`
+	Tag               string         `json:"tag"`
+	DatasetSize       int64          `json:"datasetSize"`
+	Pattern           string         `json:"pattern"`
+	Description       string         `json:"description"`
+	CreateCompanyName string         `json:"createCompanyName"`
+	CreateTime        int64          `json:"createTime"`
+	SalesVolume       string         `json:"salesVolume"`
+	PlatformTag       string         `json:"platformTag"`
+	Status            int            `json:"status"`
+	SecurityLevel     string         `json:"securityLevel"`
+	DataSourceType    int            `json:"sourceType"`
+	ImageList         []DatasetImage `json:"imageList"`
+}
+
+// DatasetDetailResponse 数据集详情响应
+type DatasetDetailResponse struct {
+	ResultCode int            `json:"resultCode"`
+	ResultDesc string         `json:"resultDesc"`
+	Data       *DatasetDetail `json:"data"`
+}

@@ -201,6 +201,30 @@ func (s *DianshuService) ListPurchasedAPIs(ctx context.Context) (*MCPToolResult,
 	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: formatPurchasedAPIListV2(result)}}}, nil
 }
 
+// GetDatasetDetail 获取数据集详情。
+func (s *DianshuService) GetDatasetDetail(ctx context.Context, datasetID int) (*MCPToolResult, error) {
+	allCookies := cookies.GetAllCookies()
+	if len(allCookies) == 0 {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "❌ 未登录，请先使用 get_login_qrcode 扫码登录"}},
+			IsError: true,
+		}, nil
+	}
+
+	client := dianshu.NewAPIClient(allCookies)
+	detail, err := client.GetDatasetDetail(ctx, datasetID)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 获取数据集详情失败: %v", err)}},
+			IsError: true,
+		}, nil
+	}
+
+	return &MCPToolResult{
+		Content: []MCPContent{{Type: "text", Text: formatDatasetDetail(detail)}},
+	}, nil
+}
+
 // GetQRCodeOnly 仅获取二维码图片（不等待登录）。
 func (s *DianshuService) GetQRCodeOnly(ctx context.Context) (*MCPToolResult, error) {
 	imgData, text, err := dianshu.GetLoginQRCodeOnly(ctx, s.browserHeadless)
@@ -501,7 +525,7 @@ func formatTaskList(tasks []dianshu.TaskItem) string {
 			payStatusText = "已退款"
 		}
 
-		sb.WriteString(fmt.Sprintf("【订单 %d】\n任务编码: %s\n数据集: %s\n卖家: %s\n金额: %.4f\n状态: %s\n支付状态: %s\n创建时间: %s\n\n", i+1, task.TaskCode, task.DatasetName, task.DatasetUserName, task.Price, statusText, payStatusText, task.CreateTimeSql))
+		sb.WriteString(fmt.Sprintf("【订单 %d】\n任务编码: %s\n数据集: %s\n数据集 ID: %d\n卖家: %s\n金额: %.4f\n状态: %s\n支付状态: %s\n创建时间: %s\n\n", i+1, task.TaskCode, task.DatasetName, task.DatasetID, task.DatasetUserName, task.Price, statusText, payStatusText, task.CreateTimeSql))
 	}
 	return sb.String()
 }
@@ -519,7 +543,7 @@ func formatDownloadList(tasks []dianshu.TaskItem) string {
 
 	var sb strings.Builder
 	for i, task := range downloads {
-		sb.WriteString(fmt.Sprintf("【下载 %d】\n数据集: %s\n任务编码: %s\n文件类型: %s\n", i+1, task.DatasetName, task.TaskCode, defaultText(task.Pattern)))
+		sb.WriteString(fmt.Sprintf("【下载 %d】\n数据集: %s\n数据集 ID: %d\n任务编码: %s\n文件类型: %s\n", i+1, task.DatasetName, task.DatasetID, task.TaskCode, defaultText(task.Pattern)))
 		if task.FileURL != "" {
 			sb.WriteString(fmt.Sprintf("文件标识: %s\n", task.FileURL))
 		}
@@ -607,6 +631,7 @@ func formatDatasetSearchResult(result *dianshu.DatasetSearchResponse) string {
 		sb.WriteString(fmt.Sprintf("标签: %s\n", defaultText(item.Tag)))
 		sb.WriteString(fmt.Sprintf("销量: %s\n", defaultText(item.SalesVolume)))
 		sb.WriteString(fmt.Sprintf("数据集编码: %s\n", item.DatasetCode))
+		sb.WriteString(fmt.Sprintf("数据集 ID: %d\n", item.ID))
 	}
 
 	if len(result.Data) > maxItems {
@@ -654,6 +679,7 @@ func formatHomepageRecommendResult(resp *dianshu.HomepageRecommendResponse) stri
 				name = *d.DatasetName
 			}
 			sb.WriteString(fmt.Sprintf("  %d. %s\n", i+1, name))
+			sb.WriteString(fmt.Sprintf("     ID: %s\n", d.DatasetID))
 			if d.Description != "" {
 				desc := d.Description
 				if len(desc) > 80 {
@@ -695,6 +721,7 @@ func formatMyDatasetList(result *dianshu.MyDatasetListResponse) string {
 		sb.WriteString(fmt.Sprintf("\n【%d】%s\n", i+1, item.DatasetName))
 		sb.WriteString(fmt.Sprintf("价格: ¥%.2f | 状态: %s | %s\n", item.Price, statusText, t))
 		sb.WriteString(fmt.Sprintf("编码: %s\n", item.DatasetCode))
+		sb.WriteString(fmt.Sprintf("数据集 ID: %d\n", item.ID))
 	}
 	return sb.String()
 }
@@ -711,6 +738,32 @@ func formatPurchasedAPIListV2(result *dianshu.PurchasedAPIListResponse) string {
 		sb.WriteString(fmt.Sprintf("API 编码: %s\n", item.APICode))
 		sb.WriteString(fmt.Sprintf("调用次数: %s\n", item.Usage))
 		sb.WriteString(fmt.Sprintf("购买时间: %s\n", item.CreateTime))
+	}
+	return sb.String()
+}
+
+func formatDatasetDetail(detail *dianshu.DatasetDetail) string {
+	if detail == nil {
+		return "暂无数据集信息"
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("📦 %s\n", detail.DatasetName))
+	sb.WriteString(fmt.Sprintf("编码: %s\n", detail.DatasetCode))
+	sb.WriteString(fmt.Sprintf("价格: ¥%.2f (原价 ¥%.2f)\n", detail.Price, detail.OriginalPrice))
+	sb.WriteString(fmt.Sprintf("格式: %s | 大小: %s\n", defaultText(detail.Pattern), formatFileSize(float64(detail.DatasetSize))))
+	sb.WriteString(fmt.Sprintf("卖家: %s\n", defaultText(detail.CreateCompanyName)))
+	sb.WriteString(fmt.Sprintf("标签: %s\n", defaultText(detail.Tag)))
+	sb.WriteString(fmt.Sprintf("平台标签: %s\n", defaultText(detail.PlatformTag)))
+	sb.WriteString(fmt.Sprintf("销量: %s\n", defaultText(detail.SalesVolume)))
+	sb.WriteString(fmt.Sprintf("上架时间: %s\n", time.UnixMilli(detail.CreateTime).Format("2006-01-02 15:04")))
+
+	if detail.Description != "" {
+		desc := detail.Description
+		if len(desc) > 500 {
+			desc = desc[:500] + "..."
+		}
+		sb.WriteString(fmt.Sprintf("\n📝 描述:\n%s\n", desc))
 	}
 	return sb.String()
 }

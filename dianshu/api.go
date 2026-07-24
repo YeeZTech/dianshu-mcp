@@ -326,6 +326,30 @@ func (c *APIClient) ListPurchasedAPIs(ctx context.Context, pageNo, pageSize int)
 	return &result, nil
 }
 
+// GetDatasetDetail 获取数据集详情
+func (c *APIClient) GetDatasetDetail(ctx context.Context, datasetID int) (*DatasetDetail, error) {
+	reqBody := map[string]interface{}{
+		"datasetId": datasetID,
+		"deleted":   0,
+		"_t":        time.Now().UnixMilli(),
+	}
+	resp, err := c.doRequest(ctx, "POST", "/dataset/datasetDetail", reqBody)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var result DatasetDetailResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("解析数据集详情响应失败: %w", err)
+	}
+	if result.ResultCode != 100 {
+		return nil, fmt.Errorf("获取数据集详情失败: %s", result.ResultDesc)
+	}
+	return result.Data, nil
+}
+
 func (c *APIClient) doRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader
 	if body != nil {

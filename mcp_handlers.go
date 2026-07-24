@@ -311,3 +311,21 @@ func (s *AppServer) handleDownloadDataset(ctx context.Context, args DownloadData
 	}
 	return result
 }
+
+// handleDatasetDetail 获取数据集详情。
+type DatasetDetailArgs struct {
+	DatasetID int `json:"datasetId" jsonschema:"数据集 ID，必填"`
+}
+
+func (s *AppServer) handleDatasetDetail(ctx context.Context, args DatasetDetailArgs) *MCPToolResult {
+	logrus.Infof("MCP: 数据集详情 (datasetId=%d)", args.DatasetID)
+
+	result, err := s.dianshuService.GetDatasetDetail(ctx, args.DatasetID)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "获取数据集详情失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+	return result
+}
