@@ -1,130 +1,253 @@
 # dianshu-mcp
 
-典枢数据平台（https://dianshudata.com）的 MCP 服务。当前提供微信扫码登录和数据查询能力，支持作为 MCP 工具被 Claude Code 等客户端调用。
-
-## 功能
-
-- **微信扫码登录** — 通过微信开放平台扫码登录典枢账号
-- **登录状态管理** — 检查登录状态、清除登录态
-- **数据查询** — AI 可直接补全查询参数并路由到具体数据源
-- **扣费抽象预留** — 当前保留通用扣费接口，后续可接真实扣费逻辑
+典枢数据平台（dianshudata.com）的 MCP 服务——为 AI Agent 提供典枢平台的完整操作能力，包括登录、订单管理、数据下载、API 调用、数据集搜索等。
 
 ## 快速开始
 
-### 前置要求
+### 前提条件
 
-- Go 1.21+
-- Chrome / Chromium 浏览器（用于微信扫码登录）
+- 典枢平台账号（https://dianshudata.com 注册）
+- 支持的平台：Windows / macOS / Linux
 
-### 编译
+### 安装方式一：下载预编译二进制（推荐）
 
-如果本机 `go` 命令正常：
+从 [GitHub Releases](https://github.com/your-username/dianshu-mcp/releases) 下载对应平台的二进制文件：
+
+| 平台 | 文件 |
+|------|------|
+| Windows (x64) | `dianshu-mcp-windows-amd64.exe` |
+| macOS (Apple Silicon) | `dianshu-mcp-darwin-arm64` |
+| macOS (Intel) | `dianshu-mcp-darwin-amd64` |
+| Linux (x64) | `dianshu-mcp-linux-amd64` |
+
+下载后放到任意目录，添加执行权限（macOS/Linux），直接运行即可。
+
+#### Windows
+
+```powershell
+# 下载 dianshu-mcp-windows-amd64.exe 到任意目录
+# 双击运行，或命令行启动：
+.\dianshu-mcp-windows-amd64.exe -headless=true
+```
+
+#### macOS / Linux
 
 ```bash
+# 下载后添加执行权限
+chmod +x dianshu-mcp-*
+# 启动
+./dianshu-mcp-darwin-arm64 -headless=true
+```
+
+### 安装方式二：从源码构建
+
+要求 Go 1.22+。
+
+```bash
+# Windows / macOS / Linux 通用
+git clone https://github.com/your-username/dianshu-mcp.git
 cd dianshu-mcp
+
+# 下载依赖
+go mod download
+
+# 构建
 go build -o dianshu-mcp .
+
+# Windows
+dianshu-mcp.exe -headless=true
+
+# macOS / Linux
+./dianshu-mcp -headless=true
 ```
 
-如果你的 `goenv` shim 已损坏，可临时使用本机缓存的 Go toolchain：
+### 启动参数
 
-```bash
-export PATH="/Users/zhyyao/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.5.darwin-arm64/bin:$PATH"
-cd dianshu-mcp
-go mod tidy
-go build -o dianshu-mcp .
-```
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `-headless` | `false` | `true` = 后台模式（不弹浏览器）；`false` = 前台模式 |
+| `-port` | `18061` | HTTP 服务端口 |
 
-### 启动服务
+服务默认监听 `http://localhost:18061`，提供 Streamable HTTP MCP 协议。
 
-```bash
-./dianshu-mcp
-```
+---
 
-启动后 MCP 服务运行在 `http://localhost:18061/mcp`（Streamable HTTP）。
+## 配置 AI Agent
 
-> 当前小红书搜索数据源的 `Authorization` 已写死在 `dianshu/provider_xiaohongshu_search.go` 中，仅适用于该数据源。
+### 第一步：配置 MCP 服务连接
 
-## MCP 工具
+在 AI Agent 的 MCP 配置中添加（不同 Agent 配置文件位置不同，以下为常见示例）：
 
-### `check_login_status`
-
-检查当前登录状态。
-
-### `get_login_qrcode`
-
-获取微信登录二维码并等待扫码完成。
-
-### `delete_cookies`
-
-清除保存的登录态，下次操作需要重新登录。
-
-### `data_search`
-
-数据查询工具。AI 可以只传 `query`，也可以主动补全其他字段。
-
-**参数：**
+**通用 MCP 配置**（`mcp.json` / `mcp_servers.json` 等）：
 
 ```json
 {
-  "query": "西瓜",
-  "provider": "xiaohongshu",
-  "dataset": "search",
-  "siteDomain": "xiaohongshu.com",
-  "keyword": "西瓜",
-  "page": "1",
-  "startTime": "1779381079",
-  "endTime": "1779427884"
+  "mcpServers": {
+    "dianshu-mcp": {
+      "url": "http://localhost:18061/mcp",
+      "transport": "streamable-http"
+    }
+  }
 }
 ```
 
-## REST API
+**Claude Code**（`.claude/settings.json`）：
 
-### 登录状态
-
-```bash
-GET /api/v1/login/status
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "type": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
 ```
 
-### 获取登录二维码
+**Hermes**（`~/.hermes/config.yaml`）：
 
-```bash
-GET /api/v1/login/qrcode
+```yaml
+mcp_servers:
+  dianshu-mcp:
+    transport: streamable-http
+    url: http://localhost:18061/mcp
 ```
 
-### 删除登录态
+### 第二步：导入 Skills
+
+将仓库 `.claude/skills/` 目录下的 5 个 skill 文件夹复制到你 Agent 的 skills 目录：
+
+| Agent | Skills 目录 |
+|-------|------------|
+| Claude Code | `.claude/skills/` |
+| Hermes | `~/.hermes/skills/` |
+| 其他 Agent | 查看对应文档 |
 
 ```bash
-DELETE /api/v1/login/cookies
+# 示例：导入到 Claude Code
+cp -r .claude/skills/* /your-project/.claude/skills/
+
+# 示例：导入到 Hermes
+cp -r .claude/skills/* ~/.hermes/skills/
 ```
 
-### 数据查询
+**5 个 Skills：**
+
+| Skill | 用途 |
+|------|------|
+| `dianshu` | 主入口——数据来源优先级路由 |
+| `dianshu-login` | 扫码登录 / 检查状态 / 切换账号 |
+| `dianshu-order` | 订单管理——查订单 / 下载数据 |
+| `dianshu-search` | 数据集搜索与购买引导 |
+| `dianshu-api` | 数据 API 查询与调用 |
+
+---
+
+## 首次使用
+
+1. 启动服务后，在 Agent 中说「登录典枢」
+2. Agent 会展示微信二维码，用微信扫码完成登录
+3. 登录成功后即可开始使用
+
+---
+
+## 数据来源优先级
+
+Agent 加载 Skills 后，处理数据类请求的默认行为：
+
+1. **优先查已购数据** — `list_downloads` / `list_purchased_apis`
+2. **找到则提示使用** — 询问用户是否下载 / 调用
+3. **未找到则搜市场** — `search_datasets` / `homepage_recommend`
+4. **展示结果 + 购买链接** — 典枢数据集详情页 `https://dianshudata.com/dataset/{id}`
+5. **无结果** — 建议访问 https://dianshudata.com 浏览
+
+---
+
+## MCP 工具清单（16 个）
+
+### 账户与登录
+
+| 工具 | 说明 |
+|------|------|
+| `check_login_status` | 检查典枢登录状态 |
+| `get_login_qrcode` | 获取微信扫码登录二维码（PNG 图片） |
+| `delete_cookies` | 清除登录态，切换账号 |
+
+### 订单与下载
+
+| 工具 | 说明 |
+|------|------|
+| `list_orders` | 查询订单列表，支持按类型 / 编号筛选 |
+| `list_downloads` | 列出已购买的可下载数据产品 |
+| `download_order` | 通过任务编码下载并解密数据文件 |
+| `list_purchased_apis` | 列出已购买的数据 API |
+| `get_api_detail` | 获取 API 的详细参数信息 |
+| `call_api` | 调用已购买的数据 API（自动加解密） |
+
+### 数据集搜索
+
+| 工具 | 说明 |
+|------|------|
+| `search_datasets` | 按关键词搜索典枢平台数据集 |
+| `dataset_detail` | 获取数据集详细信息 |
+| `homepage_recommend` | 获取首页推荐（热门 / 高分数据集等） |
+| `my_datasets` | 获取我发布的数据集列表 |
+
+### 个人中心
+
+| 工具 | 说明 |
+|------|------|
+| `get_my_profile` | 获取当前账号资料 |
+| `get_my_wallet` | 获取钱包余额 |
+| `list_wallet_transactions` | 查看钱包交易明细 |
+
+---
+
+## 项目结构
+
+```
+dianshu-mcp/
+├── main.go                # 入口，参数解析
+├── app_server.go          # AppServer 容器
+├── service.go             # 核心业务
+├── service_api.go         # API 调用业务
+├── routes.go              # HTTP 路由
+├── mcp_server.go          # MCP 工具注册
+├── mcp_handlers.go        # MCP 工具 handler
+├── mcp_handlers_extra.go  # API 工具 handler
+├── handlers_api.go        # REST API handler
+├── types.go               # 公共类型
+├── configs/config.go      # 配置常量
+├── cookies/               # Cookie 管理
+├── dianshu/               # 典枢 HTTP 客户端
+│   ├── api.go             # 典枢 API
+│   ├── sdk.go             # 数据 API SDK
+│   ├── auth.go            # 微信扫码登录
+│   ├── browser.go         # go-rod 浏览器
+│   └── types.go           # 数据类型
+├── pipeline/download.go   # 下载管线
+├── chain/                 # 链上操作
+├── crypto/                # 加解密
+├── kms/kms.go             # KMS 集成
+├── output/                # 输出目录
+├── .claude/skills/        # Agent Skills（5 个）
+├── scripts/               # 工具脚本
+└── build.sh               # 构建脚本
+```
+
+## 技术栈
+
+- 语言：Go 1.22+
+- Web 框架：Gin
+- MCP SDK：`github.com/modelcontextprotocol/go-sdk`
+- 浏览器自动化：`github.com/go-rod/rod`
+- 加密：`github.com/decred/dcrd/dcrec/secp256k1/v4`
+- 以太坊连接：`github.com/ethereum/go-ethereum`
+
+## 开发
 
 ```bash
-curl -X POST 'http://localhost:18061/api/v1/data/search' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "query": "西瓜",
-    "provider": "xiaohongshu",
-    "dataset": "search",
-    "siteDomain": "xiaohongshu.com",
-    "keyword": "西瓜",
-    "page": "1"
-  }'
+go build -o dianshu-mcp .
+go fmt ./...
+go test ./...
 ```
-
-## 当前默认路由规则
-
-当前默认规则：
-
-- `provider` 留空时，默认 `xiaohongshu`
-- `dataset` 留空时，默认 `search`
-- `siteDomain` 留空时，默认 `xiaohongshu.com`
-- `keyword` 留空时，回退为 `query`
-- `page` 留空时，默认 `1`
-
-## 代码组织建议
-
-- `dianshu/data_query.go`：统一查询抽象、通用返回值、扣费接口
-- `dianshu/provider_*.go`：每个数据源 / 数据集各写一个文件，存放不通用实现
-- `service.go`：统一业务编排（登录校验、参数兜底、调用查询、调用扣费）
-- `mcp_server.go` / `handlers_api.go`：暴露工具入口，不耦合具体数据源细节

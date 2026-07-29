@@ -22,10 +22,8 @@ description: |
 
 **展示二维码**：MCP 返回的图片会通过客户端渲染给用户。如果客户端无法直接展示图片（如纯文本终端），则将 Base64 数据保存为临时 PNG 文件，告知用户文件路径让其手动打开：
 ```bash
-# fallback: 保存二维码到临时文件
 echo "<base64_data>" | base64 -d > /tmp/dianshu-qrcode.png
 open /tmp/dianshu-qrcode.png   # macOS
-xdg-open /tmp/dianshu-qrcode.png  # Linux
 ```
 
 提示用户：
@@ -36,16 +34,9 @@ xdg-open /tmp/dianshu-qrcode.png  # Linux
 
 ### 3. 重新登录 / 切换账号
 
-当用户要求重新登录或切换账号时：
-
 1. 调用 `delete_cookies`（⚠️ 需用户确认）— 清除当前登录状态
 2. 调用 `get_login_qrcode` — 获取新二维码
 3. 引导用户扫码
-
-## 约束
-
-- `delete_cookies` 会清除登录状态，执行前必须确认
-- 登录需要用户手动用手机微信扫码，无法自动完成
 
 ## 失败处理
 
@@ -53,3 +44,4 @@ xdg-open /tmp/dianshu-qrcode.png  # Linux
 |---|---|
 | MCP 工具不可用 | 引导用户先部署启动 dianshu-mcp 服务 |
 | 二维码超时 | 重新调用 `get_login_qrcode` |
+| 未安装微信 | 提示需要微信扫码，可在手机上操作 |
