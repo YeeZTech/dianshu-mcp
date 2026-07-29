@@ -80,22 +80,6 @@ func (s *AppServer) listOrdersHandler(c *gin.Context) {
 	respondSuccess(c, result, "查询订单成功")
 }
 
-// dataSearchHandler 数据查询。
-func (s *AppServer) xhsSearchHandler(c *gin.Context) {
-	var request DataSearchArgs
-	if err := c.ShouldBindJSON(&request); err != nil {
-		respondError(c, http.StatusBadRequest, "INVALID_REQUEST", "请求参数错误", err.Error())
-		return
-	}
-
-	result, err := s.dianshuService.XhsSearch(c.Request.Context(), request)
-	if err != nil {
-		respondError(c, http.StatusInternalServerError, "DATA_SEARCH_FAILED", "数据查询失败", err.Error())
-		return
-	}
-	respondSuccess(c, result, "数据查询成功")
-}
-
 // datasetSearchHandler 典枢数据集搜索。
 func (s *AppServer) datasetSearchHandler(c *gin.Context) {
 	var request DatasetSearchArgs

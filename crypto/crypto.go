@@ -311,12 +311,12 @@ func GenerateForwardSecretKey(remotePkeyHex, skeyHex string) (otsHex string, enc
 	if err != nil {
 		return "", nil, nil, err
 	}
-	otsBytes, _ := hexToBytes(otsHex)
+	skeyBytes, _ := hexToBytes(skeyHex)
 
 	otsPubKey, _ := PublicKeyFromPrivate(otsHex)
 	pubKeyBytes, _ := hexToBytes(otsPubKey)
 
-	encryptedSkey, err = encryptMessage(remotePkeyHex, otsHex, otsBytes, pubKeyBytes, 0x01)
+	encryptedSkey, err = encryptMessage(remotePkeyHex, otsHex, skeyBytes, pubKeyBytes, 0x01)
 	if err != nil {
 		return "", nil, nil, err
 	}

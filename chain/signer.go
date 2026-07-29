@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -43,7 +44,7 @@ func SignOffChainSkeyTx(initResp *InitTxResponse, priKeyHex string) (string, err
 	if err != nil {
 		return "", fmt.Errorf("序列化交易失败: %w", err)
 	}
-	return fmt.Sprintf("0x%x", signedBytes), nil
+	return "0x" + hex.EncodeToString(signedBytes), nil
 }
 
 func hexToBytes32(hexStr string) []byte {

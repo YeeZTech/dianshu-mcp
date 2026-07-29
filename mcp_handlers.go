@@ -229,23 +229,6 @@ func formatMyProfileText(userInfo *dianshu.UserInfo) string {
 	return fmt.Sprintf("👤 我的资料\n我的昵称: %s\n典枢号: %s\n卖家介绍: %s\n我的AppCode: %s", nickname, dsUserNo, description, appCode)
 }
 
-// handleDataSearch 处理数据查询。
-func (s *AppServer) handleXhsSearch(ctx context.Context, args DataSearchArgs) *MCPToolResult {
-	logrus.Infof("MCP: 数据查询 (query=%s)", args.Query)
-
-	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
-	defer cancel()
-
-	result, err := s.dianshuService.XhsSearch(ctx, args)
-	if err != nil {
-		return &MCPToolResult{
-			Content: []MCPContent{{Type: "text", Text: "数据查询失败: " + err.Error()}},
-			IsError: true,
-		}
-	}
-	return result
-}
-
 // handleDatasetSearch 处理典枢数据集搜索。
 type DatasetSearchArgs struct {
 	Keyword  string `json:"keyword" jsonschema:"搜索关键词，必填"`

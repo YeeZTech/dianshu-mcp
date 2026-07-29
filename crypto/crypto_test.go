@@ -155,9 +155,9 @@ func TestForwardSecretKeyRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("解密转发消息失败: %v", err)
 	}
-	otsExpectedBytes, _ := hexToBytes(otsHex)
-	if !bytes.Equal(decrypted, otsExpectedBytes) {
-		t.Fatal("转发密钥解密后与原始 OTS 不一致")
+	expectedBytes, _ := hexToBytes(testPrivateKey)
+	if !bytes.Equal(decrypted, expectedBytes) {
+		t.Fatalf("转发密钥解密后与原始私钥不一致: got=%x want=%x", decrypted, expectedBytes)
 	}
 }
 

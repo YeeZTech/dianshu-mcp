@@ -154,106 +154,44 @@ func (c *APIClient) ListTasks(ctx context.Context, pageNo, pageSize int) ([]Task
 	return result.Data, nil
 }
 
-// GetTradeList 通过 taskCode 查询交易详情。
-// 先试 orderCode 精确匹配，失败则遍历全部交易按 taskCode 匹配。
-func (c *APIClient) GetTradeList(ctx context.Context, taskCode string) ([]TaskItem, error) {
-	// 尝试用 taskCode 作为 orderCode 精确查询
-	reqBody := map[string]interface{}{
-		"pageNo":    1,
-		"pageSize":  1,
-		"orderCode": taskCode,
-	}
-	jsonBody, _ := json.Marshal(reqBody)
-	logrus.Infof("[GetTradeList] 请求 /system/trade/tradeList (orderCode=%s): %s", taskCode, string(jsonBody))
-
-	resp, err := c.doRequest(ctx, "POST", "/system/trade/tradeList", reqBody)
+// GetTaskByCode 通过 taskCode 直接查询任务（taskList API 支持 orderCode 过滤）。
+func (c *APIClient) GetTaskByCode(ctx context.Context, taskCode string) (*TaskItem, error) {
+	body := map[string]interface{}{"pageNo": 1, "pageSize": 1, "orderCode": taskCode}
+	resp, err := c.doRequest(ctx, "POST", "/system/task/taskList", body)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	logrus.Infof("[GetTradeList] 响应长度: %d bytes", len(body))
-
+	raw, _ := io.ReadAll(resp.Body)
 	var result struct {
-		ResultCode int    `json:"resultCode"`
-		ResultDesc string `json:"resultDesc"`
-		Data       []struct {
-			TradeCode string     `json:"tradeCode"`
-			TaskList  []TaskItem `json:"taskList"`
-		} `json:"data"`
+		ResultCode int        `json:"resultCode"`
+		Data       []TaskItem `json:"data"`
 	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("解析 tradeList 响应失败: %w", err)
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, fmt.Errorf("解析 taskList: %w", err)
 	}
-	if result.ResultCode != 100 {
-		return nil, fmt.Errorf("查询交易列表失败: %s", result.ResultDesc)
+	if result.ResultCode != 100 || len(result.Data) == 0 {
+		return nil, fmt.Errorf("未找到任务 %s", taskCode)
 	}
-	if len(result.Data) > 0 && len(result.Data[0].TaskList) > 0 {
-		logrus.Infof("[GetTradeList] orderCode 精确匹配成功")
-		return result.Data[0].TaskList, nil
-	}
-
-	// 精确匹配失败，扩大查询遍历全部交易
-	logrus.Infof("[GetTradeList] 精确匹配失败，遍历全部交易")
-	reqBody2 := map[string]interface{}{"pageNo": 1, "pageSize": 100}
-	resp2, err := c.doRequest(ctx, "POST", "/system/trade/tradeList", reqBody2)
-	if err != nil {
-		return nil, err
-	}
-	defer resp2.Body.Close()
-
-	body2, _ := io.ReadAll(resp2.Body)
-	var result2 struct {
-		ResultCode int    `json:"resultCode"`
-		ResultDesc string `json:"resultDesc"`
-		Data       []struct {
-			TradeCode string     `json:"tradeCode"`
-			TaskList  []TaskItem `json:"taskList"`
-		} `json:"data"`
-		Page struct {
-			Count int `json:"count"`
-		} `json:"page"`
-	}
-	if err := json.Unmarshal(body2, &result2); err != nil {
-		return nil, fmt.Errorf("解析 tradeList 响应失败: %w", err)
-	}
-	if result2.ResultCode != 100 {
-		return nil, fmt.Errorf("查询交易列表失败: %s", result2.ResultDesc)
-	}
-
-	for _, trade := range result2.Data {
-		for _, task := range trade.TaskList {
-			if task.TaskCode == taskCode {
-				logrus.Infof("[GetTradeList] 找到任务: tradeCode=%s", trade.TradeCode)
-				return []TaskItem{task}, nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("未找到任务 %s（查询了 %d 笔交易）", taskCode, result2.Page.Count)
+	return &result.Data[0], nil
 }
 
-// GetTaskDetail 获取单个任务详情
-func (c *APIClient) GetTaskDetail(ctx context.Context, id int) (*TaskItem, error) {
-	resp, err := c.doRequest(ctx, "POST", "/system/task/taskDetail", map[string]interface{}{"id": id})
+// ListMyDatasets 获取我的数据集列表
+func (c *APIClient) ListMyDatasets(ctx context.Context, pageNo, pageSize int) (*MyDatasetListResponse, error) {
+	resp, err := c.doRequest(ctx, "POST", "/system/dataset/myDataset", PageRequest{PageNo: pageNo, PageSize: pageSize})
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
 	body, _ := io.ReadAll(resp.Body)
-	var result struct {
-		ResultCode int       `json:"resultCode"`
-		ResultDesc string    `json:"resultDesc"`
-		Data       *TaskItem `json:"data"`
-	}
+	var result MyDatasetListResponse
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("解析任务详情失败: %w", err)
+		return nil, fmt.Errorf("解析数据集列表失败: %w", err)
 	}
 	if result.ResultCode != 100 {
-		return nil, fmt.Errorf("查询任务详情失败: %s", result.ResultDesc)
+		return nil, fmt.Errorf("查询数据集列表失败: %s", result.ResultDesc)
 	}
-	return result.Data, nil
+	return &result, nil
 }
 
 // GetTaskPrivateKey 获取任务密封文件私钥
@@ -501,31 +439,6 @@ func (c *APIClient) doRequest(ctx context.Context, method, path string, body int
 	return resp, nil
 }
 
-// ListMyDatasets 获取我的数据集列表
-func (c *APIClient) ListMyDatasets(ctx context.Context, pageNo, pageSize int) (*MyDatasetListResponse, error) {
-	reqBody := map[string]interface{}{
-		"pageNo":         pageNo,
-		"pageSize":       pageSize,
-		"moderationFlag": "Y",
-	}
-	resp, err := c.doRequest(ctx, "POST", "/system/dataset/datasetList", reqBody)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	var result MyDatasetListResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("解析我的数据集列表响应失败: %w", err)
-	}
-	if result.ResultCode != 100 {
-		return nil, fmt.Errorf("获取我的数据集列表失败: %s", result.ResultDesc)
-	}
-	return &result, nil
-}
-
-// doRequestToGateway 向指定网关发送请求（支持多网关）
 func (c *APIClient) doRequestToGateway(ctx context.Context, method, gateway, path string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader
 	if body != nil {

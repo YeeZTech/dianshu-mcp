@@ -164,6 +164,42 @@ type TaskPrivateKeyResult struct {
 	PublishStatus int    `json:"publishStatus"`
 }
 
+// API 详情
+
+// APIDetail API 详情（来自 /api/detail）
+type APIDetail struct {
+	APIID         int          `json:"apiId"`
+	UniqueAPIID   string       `json:"uniqueApiId"` // SDK 使用的 apiCode
+	APIName       string       `json:"apiName"`
+	APICode       string       `json:"apiCode"`
+	APIURL        string       `json:"apiUrl"`
+	MappingURL    string       `json:"mappingUrl"`
+	RequestMethod int          `json:"requestMethod"` // 0=POST, 1=GET
+	ReqHeaders    []ParamField `json:"requestHeaders"`
+	QueryParams   []ParamField `json:"queryParams"`
+	BodyParams    []ParamField `json:"bodyParams"`
+	APIType       string       `json:"apiType"` // sync/async
+	Description   string       `json:"descriptionTxt"`
+}
+
+// ParamField API 参数/请求头字段
+type ParamField struct {
+	ParamName    string `json:"paramName"`
+	TypeName     string `json:"typeName"`
+	Required     int    `json:"required"`
+	ExampleValue string `json:"exampleValue"`
+	Description  string `json:"description"`
+}
+
+// APIInitResponse /api/privateKey 返回
+type APIInitResponse struct {
+	EnclaveHash string `json:"enclaveHash"`
+	DianPkey    string `json:"dianPkey"`
+	APIHash     string `json:"apiHash"`
+	PrivateKey  string `json:"privateKey"`
+	PublicKey   string `json:"publicKey"`
+}
+
 // OrderItem 订单项
 type OrderItem struct {
 	OrderCode         string `json:"orderCode"`
@@ -179,28 +215,7 @@ type OrderItem struct {
 	OrderSeaButton    string `json:"orderSeaButtonText"`
 }
 
-// APIDetail API 产品详情（来自 data-api.dianshudata.com/api/detail）
-type APIDetail struct {
-	ApiID              int           `json:"apiId"`
-	ApiName            string        `json:"apiName"`
-	ApiType            string        `json:"apiType"`
-	RequestMethod      int           `json:"requestMethod"`
-	BodyParams         []APIParam    `json:"bodyParams"`
-	JavaRequestExample string        `json:"javaRequestExample"`
-	ExampleCodeList    []CodeExample `json:"exampleCodeList"`
-	AppCode            string        `json:"appCode"`
-	ApiCode            string        `json:"apiCode"`
-	ApiEndpoint        string        `json:"apiEndpoint"`
-}
-
-// APIParam API 请求参数
-type APIParam struct {
-	Name        string `json:"name"`
-	Type        string `json:"type"`
-	Required    bool   `json:"required"`
-	Example     string `json:"example"`
-	Description string `json:"description"`
-}
+// OrderItem 订单项
 
 // CodeExample 多语言代码示例
 type CodeExample struct {

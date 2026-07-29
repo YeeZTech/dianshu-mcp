@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -22,16 +20,12 @@ import (
 // DianshuService 典枢业务服务。
 type DianshuService struct {
 	browserHeadless bool
-	chargeService   dianshu.ChargeService
-	dataQueryRouter *dianshu.DataQueryRouter
 }
 
 // NewDianshuService 创建典枢服务。
 func NewDianshuService() *DianshuService {
 	return &DianshuService{
 		browserHeadless: configs.IsHeadless(),
-		chargeService:   &dianshu.NoopChargeService{},
-		dataQueryRouter: dianshu.NewDataQueryRouter(),
 	}
 }
 
@@ -334,33 +328,7 @@ func (s *DianshuService) ListMyDatasets(ctx context.Context, pageNo, pageSize in
 	}, nil
 }
 
-// DownloadDataset 根据 taskCode 下载已购买的数据文件到 output/downloads/。
-// XhsSearch 执行小红书数据查询，查询结果写入 output/data-search/ 目录。
-func (s *DianshuService) XhsSearch(ctx context.Context, args DataSearchArgs) (*MCPToolResult, error) {
-	dataQueryRequest := buildDataQueryRequest(args)
-
-	queryResult, err := s.dataQueryRouter.Query(ctx, dataQueryRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = s.chargeService.Charge(ctx, dianshu.ChargeRequest{
-		ProviderType: dataQueryRequest.ProviderType,
-		DatasetType:  dataQueryRequest.DatasetType,
-		Amount:       "",
-		Description:  "数据查询扣费预留入口",
-	}); err != nil {
-		return nil, err
-	}
-
-	resultText, err := persistRawResult(dataQueryRequest, queryResult)
-	if err != nil {
-		return nil, err
-	}
-	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: resultText}}}, nil
-}
-
-// DownloadOrder 下载订单文件。
+// CallAPI 调用数据 API（同步）。
 func (s *DianshuService) DownloadOrder(ctx context.Context, taskCode string) (*MCPToolResult, error) {
 	allCookies := cookies.GetAllCookies()
 	if len(allCookies) == 0 {
@@ -394,80 +362,16 @@ func (s *DianshuService) DownloadOrder(ctx context.Context, taskCode string) (*M
 		OutputDir:  "output/downloads",
 	}
 
-	if err := pipeline.Run(ctx, cfg, taskCode); err != nil {
+	outputPath, err := pipeline.Run(ctx, cfg, taskCode)
+	if err != nil {
 		return &MCPToolResult{
 			Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("❌ 下载失败: %v", err)}},
 			IsError: true,
 		}, nil
 	}
 	return &MCPToolResult{
-		Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("✅ 订单下载完成\n文件已解密到 output/downloads/%s.decrypted", taskCode)}},
+		Content: []MCPContent{{Type: "text", Text: fmt.Sprintf("✅ 下载完成: %s", outputPath)}},
 	}, nil
-}
-
-func buildDataQueryRequest(args DataSearchArgs) dianshu.DataQueryRequest {
-	keyword := strings.TrimSpace(args.Keyword)
-	if keyword == "" {
-		keyword = strings.TrimSpace(args.Query)
-	}
-	page := strings.TrimSpace(args.Page)
-	if page == "" {
-		page = dianshu.XiaohongshuDefaultPage
-	}
-	endTime := strings.TrimSpace(args.EndTime)
-	if endTime == "" {
-		endTime = fmt.Sprintf("%d", time.Now().Unix())
-	}
-	startTime := strings.TrimSpace(args.StartTime)
-	if startTime == "" {
-		startTime = fmt.Sprintf("%d", time.Now().Add(-7*24*time.Hour).Unix())
-	}
-
-	return dianshu.DataQueryRequest{
-		ProviderType: pickString(args.Provider, dianshu.ProviderTypeXiaohongshu),
-		DatasetType:  pickString(args.Dataset, dianshu.DatasetTypeSearch),
-		SiteDomain:   pickString(args.SiteDomain, dianshu.XiaohongshuSiteDomain),
-		Body: map[string]string{
-			"startTime": startTime,
-			"endTime":   endTime,
-			"keyword":   keyword,
-			"page":      page,
-		},
-		RawQuery: strings.TrimSpace(args.Query),
-	}
-}
-
-func pickString(value string, defaultVal string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return defaultVal
-	}
-	return value
-}
-
-func persistRawResult(queryReq dianshu.DataQueryRequest, result *dianshu.DataQueryResult) (string, error) {
-	if len(result.RawJSON) == 0 {
-		return "", fmt.Errorf("查询结果为空，无法写入 JSON 文件")
-	}
-
-	outputDir := filepath.Join("output", "data-search")
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return "", fmt.Errorf("创建输出目录失败: %w", err)
-	}
-
-	fileName := fmt.Sprintf("%s_%s_%s.json", queryReq.ProviderType, queryReq.DatasetType, time.Now().Format("20060102_150405"))
-	filePath := filepath.Join(outputDir, fileName)
-	if err := os.WriteFile(filePath, result.RawJSON, 0o644); err != nil {
-		return "", fmt.Errorf("写入查询结果文件失败: %w", err)
-	}
-
-	requestBodyJSON, err := json.MarshalIndent(queryReq.Body, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("序列化查询参数失败: %w", err)
-	}
-
-	resultText := fmt.Sprintf("✅ 查询成功\n查询内容: %s\n\n数据源: %s/%s\n站点: %s\nDSSeqNo: %s\n结果状态: %d / %s\n查询参数:\n%s\n\n结果文件: %s\n\n%s", queryReq.RawQuery, queryReq.ProviderType, queryReq.DatasetType, queryReq.SiteDomain, result.DSSeqNo, result.ResultCode, result.ResultDesc, string(requestBodyJSON), filePath, string(result.RawJSON))
-	return resultText, nil
 }
 
 func formatWalletBalanceText(balance *dianshu.WalletBalance) string {
@@ -490,31 +394,15 @@ func formatTaskList(tasks []dianshu.TaskItem) string {
 
 	var sb strings.Builder
 	for i, task := range tasks {
-		statusText := "未知"
-		switch task.Status {
-		case 0:
-			statusText = "待支付"
-		case 1:
-			statusText = "进行中"
-		case 2:
-			statusText = "已完成"
-		case 3:
-			statusText = "已取消"
-		}
-
-		payStatusText := "未知"
+		payStatus := "未支付"
 		switch task.PayStatus {
-		case 0:
-			payStatusText = "未支付"
 		case 1:
-			payStatusText = "已支付"
-		case 2:
-			payStatusText = "退款中"
-		case 3:
-			payStatusText = "已退款"
+			payStatus = "已支付"
+		case 4:
+			payStatus = "已退款"
 		}
-
-		sb.WriteString(fmt.Sprintf("【订单 %d】\n任务编码: %s\n数据集: %s\n数据集 ID: %d\n卖家: %s\n金额: %.4f\n状态: %s\n支付状态: %s\n创建时间: %s\n\n", i+1, task.TaskCode, task.DatasetName, task.DatasetID, task.DatasetUserName, task.Price, statusText, payStatusText, task.CreateTimeSql))
+		sb.WriteString(fmt.Sprintf("【订单 %d】\n任务编码: %s\n任务ID: %d\n数据集ID: %d\n数据集: %s\n支付状态: %s\n创建时间: %s\n\n",
+			i+1, task.TaskCode, task.ID, task.DatasetID, task.DatasetName, payStatus, task.CreateTimeSql))
 	}
 	return sb.String()
 }
@@ -724,6 +612,7 @@ func formatPurchasedAPIListV2(result *dianshu.PurchasedAPIListResponse) string {
 	sb.WriteString(fmt.Sprintf("🔌 已购买 API 产品（第 %d/%d 页，共 %d 个）\n", result.Page.PageNo, result.Page.TotalPage, result.Page.Count))
 	for i, item := range result.Data {
 		sb.WriteString(fmt.Sprintf("\n【%d】%s\n", i+1, item.APIName))
+		sb.WriteString(fmt.Sprintf("API ID: %d\n", item.APIID))
 		sb.WriteString(fmt.Sprintf("API 编码: %s\n", item.APICode))
 		sb.WriteString(fmt.Sprintf("调用次数: %s\n", item.Usage))
 		sb.WriteString(fmt.Sprintf("购买时间: %s\n", item.CreateTime))

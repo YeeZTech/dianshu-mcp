@@ -129,14 +129,6 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 	)
 
 	mcp.AddTool(server,
-		&mcp.Tool{Name: "xhs_search", Description: "小红书数据搜索查询", Annotations: &mcp.ToolAnnotations{Title: "XHS Search", ReadOnlyHint: true}},
-		withPanicRecovery("xhs_search", func(ctx context.Context, req *mcp.CallToolRequest, args DataSearchArgs) (*mcp.CallToolResult, any, error) {
-			result := appServer.handleXhsSearch(ctx, args)
-			return convertToMCPResult(result), nil, nil
-		}),
-	)
-
-	mcp.AddTool(server,
 		&mcp.Tool{Name: "search_datasets", Description: "搜索典枢平台上的数据集，可按关键词查找", Annotations: &mcp.ToolAnnotations{Title: "Search Datasets", ReadOnlyHint: true}},
 		withPanicRecovery("search_datasets", func(ctx context.Context, req *mcp.CallToolRequest, args DatasetSearchArgs) (*mcp.CallToolResult, any, error) {
 			result := appServer.handleDatasetSearch(ctx, args)
@@ -176,7 +168,22 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 		}),
 	)
 
-	logrus.Infof("Registered %d MCP tools", 15)
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "get_api_detail", Description: "获取 API 的参数列表。拿到参数后务必先展示给用户，让用户填写具体参数值，不要自行编造", Annotations: &mcp.ToolAnnotations{Title: "Get API Detail", ReadOnlyHint: true}},
+		withPanicRecovery("get_api_detail", func(ctx context.Context, req *mcp.CallToolRequest, args GetAPIDetailArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleGetAPIDetail(ctx, args)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	mcp.AddTool(server,
+		&mcp.Tool{Name: "call_api", Description: "调用数据 API。params 的值必须由用户明确提供，不要猜测或编造参数值", Annotations: &mcp.ToolAnnotations{Title: "Call API", ReadOnlyHint: false}},
+		withPanicRecovery("call_api", func(ctx context.Context, req *mcp.CallToolRequest, args CallAPIArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleCallAPI(ctx, args)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+	logrus.Infof("Registered %d MCP tools", 16)
 }
 
 // convertToMCPResult 将自定义 MCPToolResult 转换为官方 SDK 格式

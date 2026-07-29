@@ -41,7 +41,6 @@ func setupRoutes(appServer *AppServer) *gin.Engine {
 		api.GET("/login/qrcode", appServer.getLoginQRCodeHandler)
 		api.DELETE("/login/cookies", appServer.deleteCookiesHandler)
 		api.POST("/orders/query", appServer.listOrdersHandler)
-		api.POST("/data/search", appServer.xhsSearchHandler)
 		api.POST("/dataset/search", appServer.datasetSearchHandler)
 		api.GET("/homepage/recommend", appServer.homepageRecommendHandler)
 		api.POST("/dataset/mine", appServer.listMyDatasetsHandler)

@@ -45,7 +45,7 @@ type InitTxResponse struct {
 	ResultOnChainHash  string `json:"resultOnChainHash"`
 }
 
-// InitOffChainSkey 初始化 requestOffChainSkey 交易，获取链上参数。
+// InitOffChainSkey 初始化 requestOffChainSkey 交易。
 func (c *Client) InitOffChainSkey(ctx context.Context, orderCode string) (*InitTxResponse, error) {
 	body := map[string]interface{}{
 		"functionName": "requestOffChainSkey",
@@ -55,11 +55,17 @@ func (c *Client) InitOffChainSkey(ctx context.Context, orderCode string) (*InitT
 	if err != nil {
 		return nil, err
 	}
-	var result InitTxResponse
-	if err := json.Unmarshal(resp, &result); err != nil {
+	var wrapper struct {
+		ResultCode int             `json:"resultCode"`
+		Data       *InitTxResponse `json:"data"`
+	}
+	if err := json.Unmarshal(resp, &wrapper); err != nil {
 		return nil, fmt.Errorf("解析 initTx 响应失败: %w", err)
 	}
-	return &result, nil
+	if wrapper.ResultCode != 100 || wrapper.Data == nil {
+		return nil, fmt.Errorf("initTx 失败: %s", string(resp))
+	}
+	return wrapper.Data, nil
 }
 
 // SendTxRequest sendDataTransaction 请求体
@@ -74,7 +80,7 @@ type SendTxResponse struct {
 	UUID            string `json:"UUID"`
 }
 
-// SendTransaction 发送已签名的交易到后端。
+// SendTransaction 发送已签名的交易。
 func (c *Client) SendTransaction(ctx context.Context, req SendTxRequest) (*SendTxResponse, error) {
 	body := map[string]interface{}{
 		"UUID":                req.UUID,
@@ -85,28 +91,35 @@ func (c *Client) SendTransaction(ctx context.Context, req SendTxRequest) (*SendT
 	if err != nil {
 		return nil, err
 	}
-	var result SendTxResponse
-	if err := json.Unmarshal(resp, &result); err != nil {
+	var wrapper struct {
+		ResultCode int             `json:"resultCode"`
+		Data       *SendTxResponse `json:"data"`
+	}
+	if err := json.Unmarshal(resp, &wrapper); err != nil {
 		return nil, fmt.Errorf("解析 sendTx 响应失败: %w", err)
 	}
-	return &result, nil
+	if wrapper.ResultCode != 100 || wrapper.Data == nil {
+		return nil, fmt.Errorf("发送交易失败: %s", string(resp))
+	}
+	return wrapper.Data, nil
 }
 
-// CheckTask 检查任务链上状态。
-// publishStatus: 0/1-待上链, 2-上链成功, 3-上链失败
-func (c *Client) CheckTask(ctx context.Context, orderCode string) (publishStatus int, err error) {
+// CheckTask 检查任务链上状态（0/1 待处理，2 成功，3 失败）。
+func (c *Client) CheckTask(ctx context.Context, orderCode string) (int, error) {
 	body := map[string]string{"orderCode": orderCode}
 	resp, err := c.doPost(ctx, checkTaskPath, body)
 	if err != nil {
 		return 0, err
 	}
-	var result struct {
-		PublishStatus int `json:"publishStatus"`
+	var wrapper struct {
+		Data struct {
+			PublishStatus int `json:"publishStatus"`
+		} `json:"data"`
 	}
-	if err := json.Unmarshal(resp, &result); err != nil {
+	if err := json.Unmarshal(resp, &wrapper); err != nil {
 		return 0, fmt.Errorf("解析 checkTask 响应失败: %w", err)
 	}
-	return result.PublishStatus, nil
+	return wrapper.Data.PublishStatus, nil
 }
 
 func (c *Client) doPost(ctx context.Context, path string, body interface{}) ([]byte, error) {
