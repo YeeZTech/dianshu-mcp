@@ -294,24 +294,6 @@ func (s *AppServer) handleListMyDatasets(ctx context.Context, args DatasetSearch
 	return result
 }
 
-// handleDownloadDataset 下载已购买的数据文件。
-type DownloadDatasetArgs struct {
-	TaskCode string `json:"taskCode" jsonschema:"任务编码，必填，从 list_downloads 获取"`
-}
-
-func (s *AppServer) handleDownloadDataset(ctx context.Context, args DownloadDatasetArgs) *MCPToolResult {
-	logrus.Infof("MCP: 下载数据集 (taskCode=%s)", args.TaskCode)
-
-	result, err := s.dianshuService.DownloadDataset(ctx, args.TaskCode)
-	if err != nil {
-		return &MCPToolResult{
-			Content: []MCPContent{{Type: "text", Text: "下载失败: " + err.Error()}},
-			IsError: true,
-		}
-	}
-	return result
-}
-
 // handleDatasetDetail 获取数据集详情。
 type DatasetDetailArgs struct {
 	DatasetID int `json:"datasetId" jsonschema:"数据集 ID，必填"`
@@ -324,6 +306,24 @@ func (s *AppServer) handleDatasetDetail(ctx context.Context, args DatasetDetailA
 	if err != nil {
 		return &MCPToolResult{
 			Content: []MCPContent{{Type: "text", Text: "获取数据集详情失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+	return result
+}
+
+// handleDownloadOrder 处理下载订单。
+type DownloadOrderArgs struct {
+	TaskCode string `json:"taskCode" jsonschema:"任务编码，必填，如 P17848795595058039"`
+}
+
+func (s *AppServer) handleDownloadOrder(ctx context.Context, args DownloadOrderArgs) *MCPToolResult {
+	logrus.Infof("MCP: 下载订单 (taskCode=%s)", args.TaskCode)
+
+	result, err := s.dianshuService.DownloadOrder(ctx, args.TaskCode)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "下载订单失败: " + err.Error()}},
 			IsError: true,
 		}
 	}

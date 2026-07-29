@@ -130,7 +130,7 @@ type DownloadURL struct {
 	URL string `json:"url"`
 }
 
-// TaskItem 任务项（来自 /system/task/taskList）
+// TaskItem 任务项（来自 /system/task/taskList 和 /system/trade/tradeList）
 type TaskItem struct {
 	ID                 int                      `json:"id"`
 	DatasetID          int                      `json:"datasetId"`
@@ -151,6 +151,17 @@ type TaskItem struct {
 	ClientDownloadUrl  string                   `json:"clientDownloadUrl"`
 	ChecksumUrl        string                   `json:"checksumUrl"`
 	APIType            int                      `json:"apiType"`
+	PrivateKey         string                   `json:"privateKey"`
+	PublishStatus      int                      `json:"publishStatus"`
+	EncryptFileHash    string                   `json:"encryptFileHash"`
+	ClientDownloadURL  string                   `json:"clientDownloadUrl"`
+}
+
+// TaskPrivateKeyResult 任务密封文件私钥
+type TaskPrivateKeyResult struct {
+	ID            int    `json:"id"`
+	PrivateKey    string `json:"privateKey"`
+	PublishStatus int    `json:"publishStatus"`
 }
 
 // OrderItem 订单项

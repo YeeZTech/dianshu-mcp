@@ -161,17 +161,17 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 	)
 
 	mcp.AddTool(server,
-		&mcp.Tool{Name: "download_dataset", Description: "下载已购买的数据文件到本地 output/downloads/ 目录，需提供任务编码 taskCode", Annotations: &mcp.ToolAnnotations{Title: "Download Dataset", ReadOnlyHint: false}},
-		withPanicRecovery("download_dataset", func(ctx context.Context, req *mcp.CallToolRequest, args DownloadDatasetArgs) (*mcp.CallToolResult, any, error) {
-			result := appServer.handleDownloadDataset(ctx, args)
+		&mcp.Tool{Name: "dataset_detail", Description: "获取典枢数据集的详细信息，需提供数据集 ID", Annotations: &mcp.ToolAnnotations{Title: "Dataset Detail", ReadOnlyHint: true}},
+		withPanicRecovery("dataset_detail", func(ctx context.Context, req *mcp.CallToolRequest, args DatasetDetailArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleDatasetDetail(ctx, args)
 			return convertToMCPResult(result), nil, nil
 		}),
 	)
 
 	mcp.AddTool(server,
-		&mcp.Tool{Name: "dataset_detail", Description: "获取典枢数据集的详细信息，需提供数据集 ID", Annotations: &mcp.ToolAnnotations{Title: "Dataset Detail", ReadOnlyHint: true}},
-		withPanicRecovery("dataset_detail", func(ctx context.Context, req *mcp.CallToolRequest, args DatasetDetailArgs) (*mcp.CallToolResult, any, error) {
-			result := appServer.handleDatasetDetail(ctx, args)
+		&mcp.Tool{Name: "download_order", Description: "下载典枢订单文件", Annotations: &mcp.ToolAnnotations{Title: "Download Order", ReadOnlyHint: false}},
+		withPanicRecovery("download_order", func(ctx context.Context, req *mcp.CallToolRequest, args DownloadOrderArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleDownloadOrder(ctx, args)
 			return convertToMCPResult(result), nil, nil
 		}),
 	)
