@@ -1,3 +1,4 @@
+// Author: zhyyao
 package crypto
 
 import (
@@ -12,6 +13,7 @@ import (
 const testPrivateKey = "60d61a1d92b26608016dba8cb8e8e96fd44d5dee0a0415a024657e47febcced8"
 const testPublicKey = "731234931a081e9beae856318a9bf32ac3698ea8215bf74f517f8377cc6ba8740e28ed87c97d0ee8775bc83505867b0bc34a66adc91f0ea9b44c80533f1a3dca"
 
+// TestHexToBytesToHex
 func TestHexToBytesToHex(t *testing.T) {
 	original := testPrivateKey
 	b, err := hexToBytes(original)
@@ -23,6 +25,7 @@ func TestHexToBytesToHex(t *testing.T) {
 		t.Fatalf("hex 往返失败: got=%s want=%s", hexStr, original)
 	}
 }
+// TestPublicKeyFromPrivate
 
 func TestPublicKeyFromPrivate(t *testing.T) {
 	pubKey, err := PublicKeyFromPrivate(testPrivateKey)
@@ -32,6 +35,7 @@ func TestPublicKeyFromPrivate(t *testing.T) {
 	if pubKey != testPublicKey {
 		t.Fatalf("公钥不匹配:\ngot:  %s\nwant: %s", pubKey, testPublicKey)
 	}
+// TestGenerateAESKeyFrom
 }
 
 func TestGenerateAESKeyFrom(t *testing.T) {
@@ -42,6 +46,7 @@ func TestGenerateAESKeyFrom(t *testing.T) {
 	if len(key) != 16 {
 		t.Fatalf("AES 密钥长度错误: got=%d want=16", len(key))
 	}
+	// TestAESCmac
 	t.Logf("AES derived key: %s", hex.EncodeToString(key))
 }
 
@@ -59,6 +64,7 @@ func TestAESCmac(t *testing.T) {
 	}
 	result3, _ := aesCmac(cmacKeyBytes, []byte("world"))
 	if bytes.Equal(result, result3) {
+	// TestEncryptDecryptRoundtrip
 		t.Fatal("aesCmac 不同输入应产生不同结果")
 	}
 }
@@ -102,6 +108,7 @@ func TestEncryptDecryptRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decryptMessage 失败: %v", err)
 	}
+	// TestEncryptDecryptRoundtrip2
 	if !bytes.Equal(decrypted, plaintext) {
 		t.Fatalf("decryptMessage 内容不一致: %x vs %x", decrypted, plaintext)
 	}
@@ -137,6 +144,7 @@ func TestEncryptDecryptRoundtrip2(t *testing.T) {
 	decrypted, err := decryptMessage(testPrivateKey, cipherPkg, 0x02)
 	if err != nil {
 		t.Fatalf("解密失败: %v", err)
+	// TestForwardSecretKeyRoundtrip
 	}
 	if !bytes.Equal(decrypted, plaintext) {
 		t.Fatalf("往返失败")
@@ -154,6 +162,7 @@ func TestForwardSecretKeyRoundtrip(t *testing.T) {
 	decrypted, err := DecryptForwardMessage(testPrivateKey, encryptedSkey)
 	if err != nil {
 		t.Fatalf("解密转发消息失败: %v", err)
+	// TestSignMessage
 	}
 	expectedBytes, _ := hexToBytes(testPrivateKey)
 	if !bytes.Equal(decrypted, expectedBytes) {
@@ -167,6 +176,7 @@ func TestSignMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("签名失败: %v", err)
 	}
+	// TestAESCmacKnownVectorEmpty
 	if len(sig) != 65 {
 		t.Fatalf("签名长度错误: got=%d want=65", len(sig))
 	}

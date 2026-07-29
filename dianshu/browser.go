@@ -1,3 +1,6 @@
+// Package dianshu - see README for details.
+//
+// Author: zhyyao
 package dianshu
 
 import (
@@ -103,9 +106,11 @@ func FindElementByText(page *rod.Page, text string) (*rod.Element, error) {
 	return page.ElementX(fmt.Sprintf("//*[contains(text(), '%s')]", text))
 }
 
+// contains checks if a byte slice contains a substring.
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && containsStr(s, substr)
 }
+// containsStr checks if a string contains a substring.
 
 func containsStr(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {

@@ -1,3 +1,7 @@
+// Package chain - see README for details.
+//
+// Author: zhyyao
+
 package chain
 
 import (
@@ -47,6 +51,7 @@ func SignOffChainSkeyTx(initResp *InitTxResponse, priKeyHex string) (string, err
 	return "0x" + hex.EncodeToString(signedBytes), nil
 }
 
+// hexToBytes32 converts a hex string to a fixed 32-byte array.
 func hexToBytes32(hexStr string) []byte {
 	if len(hexStr) >= 2 && hexStr[:2] == "0x" {
 		hexStr = hexStr[2:]

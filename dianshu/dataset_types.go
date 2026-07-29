@@ -1,3 +1,7 @@
+// Package dianshu - see README for details.
+//
+// Author: zhyyao
+
 package dianshu
 
 // DatasetItem 典枢平台数据集列表项

@@ -225,10 +225,17 @@ dianshu-mcp/
 │   ├── auth.go            # 微信扫码登录
 │   ├── browser.go         # go-rod 浏览器
 │   └── types.go           # 数据类型
-├── pipeline/download.go   # 下载管线
-├── chain/                 # 链上操作
-├── crypto/                # 加解密
-├── kms/kms.go             # KMS 集成
+├── pkg/                    # 独立 SDK 模块（与业务解耦）
+│   ├── chain/              # 链上操作
+│   │   ├── chain.go        # 链 API 客户端
+│   │   └── signer.go       # 交易签名
+│   ├── crypto/             # 加密模块
+│   │   ├── crypto.go       # ECDH+AES-CMAC+AES-GCM
+│   │   └── crypto_test.go  # 测试向量
+│   ├── kms/kms.go          # OpenBao KMS 集成
+│   ├── pipeline/           # 下载管线
+│   │   └── download.go     # KMS→查任务→上链→下载→解密→解包
+│   └── sdk/sdk.go          # 数据 API SDK
 ├── output/                # 输出目录
 ├── .claude/skills/        # Agent Skills（5 个）
 ├── scripts/               # 工具脚本

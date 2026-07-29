@@ -1,3 +1,7 @@
+// Package chain - see README for details.
+//
+// Author: zhyyao
+
 package chain
 
 import (
@@ -122,6 +126,7 @@ func (c *Client) CheckTask(ctx context.Context, orderCode string) (int, error) {
 	return wrapper.Data.PublishStatus, nil
 }
 
+// doPost sends an HTTP POST request to the chain API.
 func (c *Client) doPost(ctx context.Context, path string, body interface{}) ([]byte, error) {
 	jsonBody, _ := json.Marshal(body)
 	url := c.baseURL + path

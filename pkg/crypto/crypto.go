@@ -1,3 +1,6 @@
+// Package crypto - cryptographic primitives for dianshu-mcp.
+//
+// Author: zhyyao
 package crypto
 
 import (
@@ -23,6 +26,7 @@ var (
 	derivationBuffer = buildDerivationBuffer()
 )
 
+// buildDerivationBuffer builds the KDF buffer for AES-CMAC key derivation.
 func buildDerivationBuffer() []byte {
 	buf := make([]byte, len(aad)+4)
 	buf[0] = 0x01
@@ -41,6 +45,7 @@ func hexToBytes(s string) ([]byte, error) {
 	}
 	return hex.DecodeString(s)
 }
+// toHex converts bytes to a hex string.
 
 func toHex(b []byte) string {
 	return hex.EncodeToString(b)
@@ -98,7 +103,12 @@ func aesCmac(key, message []byte) ([]byte, error) {
 	}
 	block.Encrypt(X, xor16(X, lastBlock))
 	return X, nil
+// leftShift performs a one-bit left shift on 16-byte array.
 }
+
+
+// leftShift 对 16 字节数组左移一位。
+// leftShift performs a one-bit left shift on a 16-byte array.
 
 func leftShift(buf []byte) []byte {
 	out := make([]byte, len(buf))
@@ -107,12 +117,21 @@ func leftShift(buf []byte) []byte {
 		out[i] = ((buf[i] << 1) & 0xFF) | carry
 		if buf[i]&0x80 != 0 {
 			carry = 1
+
+		// xor16 两个 16 字节数组异或。
+		// xor16 returns the XOR of two 16-byte arrays.
+
 		} else {
 			carry = 0
 		}
 	}
+	// xor16 returns the XOR of two 16-byte arrays.
 	return out
 }
+
+
+// xor16 两数组异或。
+// xor16 returns the XOR of two 16-byte arrays.
 
 func xor16(a, b []byte) []byte {
 	out := make([]byte, 16)
@@ -121,6 +140,7 @@ func xor16(a, b []byte) []byte {
 	}
 	return out
 }
+// PublicKeyFromPrivate
 
 // ---------- secp256k1 ECDH ----------
 
@@ -131,6 +151,7 @@ func PublicKeyFromPrivate(skeyHex string) (string, error) {
 		return "", fmt.Errorf("私钥 hex 解码失败: %w", err)
 	}
 	privKey := secp256k1.PrivKeyFromBytes(skeyBytes)
+	// DeriveAESKey
 	pubKey := privKey.PubKey()
 	return toHex(pubKey.SerializeUncompressed()[1:]), nil
 }
@@ -157,16 +178,34 @@ func DeriveAESKey(pkeyHex, skeyHex string) ([]byte, error) {
 		return nil, fmt.Errorf("AES-CMAC 派生失败: %w", err)
 	}
 	derivedKey, err := aesCmac(keyDeriveKey, derivationBuffer)
+	// genECDHKey computes an ECDH shared secret using decred secp256k1.
 	if err != nil {
 		return nil, fmt.Errorf("AES-CMAC 派生失败: %w", err)
 	}
 	return derivedKey, nil
+
+// genECDHKeyGeth 计算 ECDH 共享密钥（go-ethereum secp256k1）。
+// genECDHKeyGeth computes an ECDH shared secret using go-ethereum.
+
+// genECDHKey computes an ECDH shared secret using go-ethereum secp256k1.
 }
 
+
+// genECDHKey 计算 ECDH 共享密钥。
+// genECDHKey computes an ECDH shared secret.
+
 func genECDHKey(skey, pkey []byte) []byte {
+
+	// genECDHKeyGeth 计算 ECDH 共享密钥（geth）。
+	// genECDHKeyGeth computes ECDH shared secret using go-ethereum.
+
 	// 使用 go-ethereum S256 曲线，与 JS secp256k1 的 C 实现一致
 	return genECDHKeyGeth(skey, pkey)
 }
+
+
+// genECDHKeyGeth ECDH 共享密钥（geth）。
+// genECDHKeyGeth computes ECDH shared secret with go-ethereum.
 
 func genECDHKeyGeth(skey, pkey []byte) []byte {
 	curve := ethcrypto.S256()
@@ -183,6 +222,7 @@ func genECDHKeyGeth(skey, pkey []byte) []byte {
 		compressed[0] = 0x02
 	}
 	sharedX.FillBytes(compressed[1:33])
+// SignMessage
 
 	h := sha256.Sum256(compressed)
 	return h[:]
@@ -198,9 +238,18 @@ func SignMessage(skeyHex string, message []byte) ([]byte, error) {
 	}
 	privKey := secp256k1.PrivKeyFromBytes(skeyBytes)
 
+
+	// keccak256 计算 Keccak-256 哈希。
+	// keccak256 returns the Keccak-256 hash of the data.
+
 	rawHash := keccak256(message)
 	msg := append(ethHashPrefix, rawHash...)
+	// keccak256 returns the Keccak-256 hash of data.
 	msgHash := keccak256(msg)
+
+// keccak256 计算 Keccak-256。
+// keccak256 returns Keccak-256 hash.
+
 
 	sigCompact := ecdsa.SignCompact(privKey, msgHash, false)
 	sig := make([]byte, 65)
@@ -209,9 +258,14 @@ func SignMessage(skeyHex string, message []byte) ([]byte, error) {
 	return sig, nil
 }
 
+
+// keccak256 计算 Keccak-256 哈希。
+// keccak256 returns Keccak-256 hash.
+
 func keccak256(data []byte) []byte {
 	h := sha3.NewLegacyKeccak256()
 	h.Write(data)
+	// encryptMessage
 	return h.Sum(nil)
 }
 
@@ -250,6 +304,7 @@ func encryptMessage(pkeyHex, skeyHex string, plaintext, generatedPubKey []byte, 
 	encrypted := make([]byte, len(sealed)-gcmTagSize)
 	tag := make([]byte, gcmTagSize)
 	copy(encrypted, sealed[:len(sealed)-gcmTagSize])
+	// decryptMessage
 	copy(tag, sealed[len(sealed)-gcmTagSize:])
 
 	result := make([]byte, 0, len(encrypted)+gcmIVSize+64+gcmTagSize)
@@ -285,6 +340,7 @@ func decryptMessage(skeyHex string, cipherPackage []byte, prefix byte) ([]byte, 
 		return nil, err
 	}
 	aesGCM, err := cipher.NewGCM(block)
+	// generatePrivateKey
 	if err != nil {
 		return nil, err
 	}
@@ -293,6 +349,7 @@ func decryptMessage(skeyHex string, cipherPackage []byte, prefix byte) ([]byte, 
 	copy(sealed, encrypted)
 	copy(sealed[len(encrypted):], tag)
 	return aesGCM.Open(nil, iv, sealed, tad)
+// GenerateForwardSecretKey
 }
 
 // ---------- 高级封装 ----------
@@ -310,10 +367,12 @@ func GenerateForwardSecretKey(remotePkeyHex, skeyHex string) (otsHex string, enc
 	otsHex, err = generatePrivateKey()
 	if err != nil {
 		return "", nil, nil, err
+	// DecryptForwardMessage
 	}
 	skeyBytes, _ := hexToBytes(skeyHex)
 
 	otsPubKey, _ := PublicKeyFromPrivate(otsHex)
+	// GenerateEncryptedInput
 	pubKeyBytes, _ := hexToBytes(otsPubKey)
 
 	encryptedSkey, err = encryptMessage(remotePkeyHex, otsHex, skeyBytes, pubKeyBytes, 0x01)

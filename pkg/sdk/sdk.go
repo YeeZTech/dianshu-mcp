@@ -1,4 +1,8 @@
-package dianshu
+// Package sdk - see README for details.
+//
+// Author: zhyyao
+
+package sdk
 
 import (
 	"bytes"
@@ -10,7 +14,8 @@ import (
 	"net/http"
 	"strings"
 
-	"dianshu-mcp/crypto"
+	"dianshu-mcp/dianshu"
+	"dianshu-mcp/pkg/crypto"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
@@ -39,6 +44,7 @@ type Client struct {
 	enclave   string
 }
 
+// NewClient creates a data API client with auto-generated keypair.
 func NewClient(appCode, uniqueAPIID string) (*Client, error) {
 	c := &Client{appCode: appCode, uniqueID: uniqueAPIID}
 	c.localPriv, c.localPub = newKeypair()
@@ -68,6 +74,7 @@ func NewClient(appCode, uniqueAPIID string) (*Client, error) {
 	c.enclave = r.Data.EnclaveHash
 	return c, nil
 }
+// genShuInfo generates the shuInfo authentication header.
 
 func (c *Client) genShuInfo() string {
 	dataHash := c.dianPkey + c.enclave
@@ -87,7 +94,12 @@ func (c *Client) genShuInfo() string {
 	}
 	b, _ := json.Marshal(m)
 	return string(b)
+// encryptParams encrypts API parameters for secure transmission.
 }
+
+
+// encryptParams 加密 API 参数用于安全传输。
+// encryptParams encrypts API parameters for secure transmission.
 
 func (c *Client) encryptParams(method string, queryParams, bodyParams map[string]string) string {
 	p := map[string]interface{}{
@@ -104,22 +116,49 @@ func (c *Client) encryptParams(method string, queryParams, bodyParams map[string
 	enc, _ := crypto.GenerateEncryptedInput(c.localPub, plain)
 	inner, _ := json.Marshal(map[string]string{
 		"encrypted_param": hex.EncodeToString(enc),
+
+		// Post 以 POST 方法调用数据 API。
+		// Post calls the data API with POST method.
+
 		"shu_pkey":        c.localPub,
 	})
+	// Post calls the data API with POST method.
 	return hex.EncodeToString(inner)
 }
 
+
+// Post POST 方式调用 API。
+// Post calls the data API with POST method.
+
 func (c *Client) Post(bodyParams map[string]string) (string, error) {
+
+	// Get 以 GET 方法调用数据 API。
+	// Get calls the data API with GET method.
+
 	paramsHex := c.encryptParams("POST", nil, bodyParams)
+	// Get calls the data API with GET method.
 	shuInfo := c.genShuInfo()
 	return c.doHTTP("POST", "/api/post/"+c.uniqueID, paramsHex, shuInfo)
 }
 
+
+// doHTTP 发送 HTTP 请求到数据 API 网关。
+// doHTTP sends an HTTP request to the data API gateway.
+
 func (c *Client) Get(queryParams map[string]string) (string, error) {
+	// doHTTP sends an HTTP request to the data API gateway.
 	paramsHex := c.encryptParams("GET", queryParams, nil)
+
+	// doHTTP 发送 HTTP 请求。
+	// doHTTP sends an HTTP request.
+
 	shuInfo := c.genShuInfo()
 	return c.doHTTP("GET", "/api/get/"+c.uniqueID+"?"+paramsHex, paramsHex, shuInfo)
 }
+
+
+// doHTTP 发送 HTTP 请求到数据 API 网关。
+// doHTTP sends an HTTP request to the data API gateway.
 
 func (c *Client) doHTTP(method, path, paramsHex, shuInfo string) (string, error) {
 	url := baseURL + path
@@ -152,6 +191,10 @@ func (c *Client) doHTTP(method, path, paramsHex, shuInfo string) (string, error)
 		return "", fmt.Errorf("API 返回异常: %s", string(raw))
 	}
 	if result.Data != nil {
+
+		// GetAPIDetail 获取 API 详情。
+		// GetAPIDetail returns API details.
+
 		if encResult := result.Data["encrypted_result"]; encResult != "" {
 			encBytes, _ := hex.DecodeString(encResult)
 			dec, err := crypto.DecryptInput(c.localPriv, encBytes)
@@ -160,13 +203,14 @@ func (c *Client) doHTTP(method, path, paramsHex, shuInfo string) (string, error)
 			}
 			return string(dec), nil
 		}
+	// GetAPIDetail
 	}
 	return string(raw), nil
 }
 
 // ---------- 辅助 API（供 MCP 工具使用）----------
 
-func GetAPIDetail(ctx context.Context, httpClient *http.Client, apiID int, token string, cookies []string) (*APIDetail, error) {
+func GetAPIDetail(ctx context.Context, httpClient *http.Client, apiID int, token string, cookies []string) (*dianshu.APIDetail, error) {
 	body, _ := json.Marshal(map[string]interface{}{"apiId": apiID, "deleted": 0})
 	req, _ := http.NewRequestWithContext(ctx, "POST", baseURL+"/api/detail", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -179,18 +223,31 @@ func GetAPIDetail(ctx context.Context, httpClient *http.Client, apiID int, token
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	// GetBuyerAPIList 获取买家已购 API 列表。
+	// GetBuyerAPIList retrieves the buyer's purchased API list.
+
 	var result struct {
 		ResultCode int        `json:"resultCode"`
-		Data       *APIDetail `json:"data"`
+		Data       *dianshu.APIDetail `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
+
+	// GetBuyerAPIList 获取买家 API 列表。
+	// GetBuyerAPIList retrieves purchased API list.
+
+	// GetBuyerAPIList retrieves the buyer's purchased API list.
 	}
 	if result.ResultCode != 100 || result.Data == nil {
 		return nil, fmt.Errorf("查询失败: resultCode=%d", result.ResultCode)
 	}
 	return result.Data, nil
 }
+
+
+// GetBuyerAPIList 获取买家已购 API 列表。
+// GetBuyerAPIList retrieves purchased API list.
 
 func GetBuyerAPIList(ctx context.Context, httpClient *http.Client, token string, cookies []string, pageNo, pageSize int) ([]BuyerAPIItem, error) {
 	body, _ := json.Marshal(map[string]interface{}{"pageNo": pageNo, "pageSize": pageSize})

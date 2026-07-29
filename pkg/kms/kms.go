@@ -1,3 +1,6 @@
+// Package kms - see README for details.
+//
+// Author: zhyyao
 package kms
 
 import (

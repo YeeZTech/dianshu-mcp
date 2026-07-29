@@ -1,3 +1,7 @@
+// Package dianshu - see README for details.
+//
+// Author: zhyyao
+
 package dianshu
 
 // API 响应相关的数据结构

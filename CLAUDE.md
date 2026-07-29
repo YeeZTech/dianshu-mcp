@@ -3,41 +3,40 @@
 ## 本地开发规范
 
 - 每次修改完后，需要 `go fmt ./...` 格式化 Go 源码文件
-- 测试过程中产生的 build 中间文件（如编译产物），如果没有必要则删除
-- 所有的 feature 变更，都需要使用分支进行开发
-- 在我未同意之前，不能推送到远程
-- 变更流程：1.本地 review → 2.远程 PR review
-- 不要过度设计，保持代码的简洁和易读
-- 使用中文注释，简洁明了，专业名词可以用英文
+- 测试过程中产生的 build 中间文件，必要时删除
+- Feature 变更使用分支开发
+- 未同意前不推送到远程
+- 变更流程：本地 review → 远程 PR review
+- 不要过度设计，保持代码简洁
+- 使用中文注释，专业名词可用英文
 
 ## 项目结构
 
 ```
 dianshu-mcp/
-├── main.go                # 入口，参数解析
-├── app_server.go          # AppServer 容器
-├── service.go             # 核心业务
-├── service_api.go         # API 调用业务
-├── routes.go              # HTTP 路由 + MCP
-├── mcp_server.go          # MCP 工具注册（16 个工具）
-├── mcp_handlers.go        # MCP 工具 handler（通用）
-├── mcp_handlers_extra.go  # MCP 工具 handler（API 工具）
-├── handlers_api.go        # REST API handler
-├── types.go               # 公共类型
-├── configs/config.go      # 配置常量
-├── cookies/               # Cookie 管理
-├── dianshu/               # 典枢 HTTP 客户端
-│   ├── api.go             # 典枢 API 客户端
-│   ├── sdk.go             # 数据 API SDK
-│   ├── auth.go            # 微信扫码登录
-│   ├── browser.go         # go-rod 浏览器
-│   └── types.go           # 数据类型
-├── pipeline/download.go   # 下载管线（KMS→查任务→上链→下载→解密→解包）
-├── chain/                 # 链上操作（chain.go + signer.go）
-├── crypto/                # 加解密（ECDH+AES-CMAC+AES-GCM）
-├── kms/kms.go             # KMS 集成
-├── output/                # 下载输出目录
-└── .claude/skills/        # Agent Skills
+├── main.go                  # 入口
+├── server.go                # 应用容器
+├── routes.go                # HTTP 路由（MCP + CORS）
+├── mcp.go                   # MCP 工具注册（16 个工具）
+├── config/config.go         # 统一配置
+├── logger/logger.go         # 统一日志
+├── handler/handler.go       # MCP 处理层
+├── service/service.go       # 业务层
+├── dianshu/                 # 典枢平台 HTTP 客户端
+│   ├── api.go               # API 端点
+│   ├── auth.go              # 微信扫码登录
+│   ├── browser.go           # go-rod 浏览器
+│   ├── cookies.go           # Cookie 持久化
+│   ├── types.go             # 数据类型
+│   └── dataset_types.go     # 数据集类型
+├── pkg/                     # 独立 SDK 模块（与业务解耦）
+│   ├── chain/               # 链上操作
+│   ├── crypto/              # 加密模块
+│   ├── kms/                 # KMS 集成
+│   ├── pipeline/            # 下载管线
+│   └── sdk/                 # 数据 API SDK
+├── output/                  # 输出目录
+└── .claude/skills/          # Agent Skills
 ```
 
 ## MCP 工具清单（16 个）

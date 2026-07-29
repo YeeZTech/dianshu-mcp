@@ -1,3 +1,7 @@
+// Package dianshu - see README for details.
+//
+// Author: zhyyao
+
 package dianshu
 
 import (
@@ -47,6 +51,7 @@ func GetUserInfo(ctx context.Context, cookies map[string]string) (*UserInfo, err
 	return client.GetUserInfo(ctx)
 }
 
+// GetUserInfo retrieves user information using the given cookies.
 func (c *APIClient) GetUserInfo(ctx context.Context) (*UserInfo, error) {
 	resp, err := c.doRequest(ctx, "POST", "/login/getUserInfo", nil)
 	if err != nil {
@@ -68,6 +73,7 @@ func (c *APIClient) GetUserInfo(ctx context.Context) (*UserInfo, error) {
 	return result.Data, nil
 }
 
+// GetWalletBalance
 // GetWalletBalance 获取我的钱包余额
 func (c *APIClient) GetWalletBalance(ctx context.Context) (*WalletBalance, error) {
 	resp, err := c.doRequest(ctx, "POST", "/system/wallet/balance", nil)
@@ -90,6 +96,8 @@ func (c *APIClient) GetWalletBalance(ctx context.Context) (*WalletBalance, error
 	return result.Data, nil
 }
 
+// ListWalletTransactions
+
 // ListWalletTransactions 获取钱包交易明细
 func (c *APIClient) ListWalletTransactions(ctx context.Context, page PageRequest) (*WalletTransactionListResponse, error) {
 	resp, err := c.doRequest(ctx, "POST", "/system/wallet/order_list", page)
@@ -107,6 +115,7 @@ func (c *APIClient) ListWalletTransactions(ctx context.Context, page PageRequest
 		return nil, fmt.Errorf("获取钱包交易明细失败: %s", result.ResultDesc)
 	}
 	return &result, nil
+	// QueryOrders
 }
 
 // QueryOrders 查询订单统计
@@ -132,6 +141,7 @@ func (c *APIClient) QueryOrders(ctx context.Context, orderType int, orderCode st
 	if result.ResultCode != 100 {
 		return nil, fmt.Errorf("查询订单失败: %s", result.ResultDesc)
 	}
+	// ListTasks
 	return result.Data, nil
 }
 
@@ -150,6 +160,7 @@ func (c *APIClient) ListTasks(ctx context.Context, pageNo, pageSize int) ([]Task
 	}
 	if result.ResultCode != 100 {
 		return nil, fmt.Errorf("查询任务列表失败: %s", result.ResultDesc)
+		// GetTaskByCode
 	}
 	return result.Data, nil
 }
@@ -171,6 +182,7 @@ func (c *APIClient) GetTaskByCode(ctx context.Context, taskCode string) (*TaskIt
 		return nil, fmt.Errorf("解析 taskList: %w", err)
 	}
 	if result.ResultCode != 100 || len(result.Data) == 0 {
+		// ListMyDatasets
 		return nil, fmt.Errorf("未找到任务 %s", taskCode)
 	}
 	return &result.Data[0], nil
@@ -188,6 +200,7 @@ func (c *APIClient) ListMyDatasets(ctx context.Context, pageNo, pageSize int) (*
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("解析数据集列表失败: %w", err)
 	}
+	// GetTaskPrivateKey
 	if result.ResultCode != 100 {
 		return nil, fmt.Errorf("查询数据集列表失败: %s", result.ResultDesc)
 	}
@@ -210,6 +223,7 @@ func (c *APIClient) GetTaskPrivateKey(ctx context.Context, taskID int) (*TaskPri
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("解析任务私钥失败: %w", err)
+		// DownloadFile
 	}
 	if result.ResultCode != 100 {
 		return nil, fmt.Errorf("获取任务私钥失败: %s", result.ResultDesc)
@@ -250,6 +264,7 @@ func DownloadFile(ctx context.Context, fileURL, destPath string) error {
 
 	written, err := io.Copy(f, resp.Body)
 	if err != nil {
+		// GetAPIDetail
 		return fmt.Errorf("写入文件失败: %w", err)
 	}
 	logrus.Infof("下载完成: %s (%d bytes)", destPath, written)
@@ -268,6 +283,7 @@ func (c *APIClient) GetAPIDetail(ctx context.Context, apiID int) (*APIDetail, er
 
 	body, _ := io.ReadAll(resp.Body)
 	var result APIDetailResponse
+	// GetHomepageRecommend
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("解析 API 详情失败: %w", err)
 	}
@@ -307,6 +323,7 @@ func GetHomepageRecommend(ctx context.Context) (*HomepageRecommendResponse, erro
 	if err != nil {
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}
+	// SearchDatasets
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
@@ -332,6 +349,7 @@ func (c *APIClient) SearchDatasets(ctx context.Context, keyword string, pageNo, 
 	}
 	defer resp.Body.Close()
 
+	// ListPurchasedAPIs
 	body, _ := io.ReadAll(resp.Body)
 	var result DatasetSearchResponse
 	if err := json.Unmarshal(body, &result); err != nil {
@@ -354,6 +372,7 @@ func (c *APIClient) ListPurchasedAPIs(ctx context.Context, pageNo, pageSize int)
 		return nil, err
 	}
 	defer resp.Body.Close()
+	// GetDatasetDetail
 
 	body, _ := io.ReadAll(resp.Body)
 	var result PurchasedAPIListResponse
@@ -376,6 +395,7 @@ func (c *APIClient) GetDatasetDetail(ctx context.Context, datasetID int) (*Datas
 	resp, err := c.doRequest(ctx, "POST", "/dataset/datasetDetail", reqBody)
 	if err != nil {
 		return nil, err
+		// doRequest performs an HTTP request to the Dianshu API.
 	}
 	defer resp.Body.Close()
 
@@ -389,6 +409,9 @@ func (c *APIClient) GetDatasetDetail(ctx context.Context, datasetID int) (*Datas
 	}
 	return result.Data, nil
 }
+
+// doRequest 发送 HTTP 请求到典枢 API。
+// doRequest sends an HTTP request to the Dianshu API.
 
 func (c *APIClient) doRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader
@@ -424,6 +447,7 @@ func (c *APIClient) doRequest(ctx context.Context, method, path string, body int
 		}
 		if len(cookieParts) > 0 {
 			req.Header.Set("Cookie", strings.Join(cookieParts, "; "))
+			// doRequestToGateway performs an HTTP request to a Dianshu data gateway.
 		}
 	}
 
@@ -438,6 +462,9 @@ func (c *APIClient) doRequest(ctx context.Context, method, path string, body int
 	}
 	return resp, nil
 }
+
+// doRequestToGateway 发送请求到典枢数据网关。
+// doRequestToGateway sends a request to a Dianshu gateway.
 
 func (c *APIClient) doRequestToGateway(ctx context.Context, method, gateway, path string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader
