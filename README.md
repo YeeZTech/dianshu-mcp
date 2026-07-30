@@ -164,7 +164,7 @@ Agent 加载 Skills 后，处理数据类请求的默认行为：
 1. **优先查已购数据** — `list_downloads` / `list_purchased_apis`
 2. **找到则提示使用** — 询问用户是否下载 / 调用
 3. **未找到则搜市场** — `search_datasets` / `homepage_recommend`
-4. **展示结果 + 购买链接** — 典枢数据集详情页 `https://dianshudata.com/dataset/{id}`
+4. **展示结果 + 购买链接** — 典枢详情页 `https://dianshudata.com/dataDetail/{id}`（API 产品为 `/dataAPIDetail/{id}`）
 5. **无结果** — 建议访问 https://dianshudata.com 浏览
 
 ---
@@ -213,39 +213,31 @@ Agent 加载 Skills 后，处理数据类请求的默认行为：
 
 ```
 dianshu-mcp/
-├── main.go                # 入口，参数解析
-├── app_server.go          # AppServer 容器
-├── service.go             # 核心业务
-├── service_api.go         # API 调用业务
-├── routes.go              # HTTP 路由
-├── mcp_server.go          # MCP 工具注册
-├── mcp_handlers.go        # MCP 工具 handler
-├── mcp_handlers_extra.go  # API 工具 handler
-├── handlers_api.go        # REST API handler
-├── types.go               # 公共类型
-├── configs/config.go      # 配置常量
-├── cookies/               # Cookie 管理
-├── dianshu/               # 典枢 HTTP 客户端
-│   ├── api.go             # 典枢 API
-│   ├── sdk.go             # 数据 API SDK
-│   ├── auth.go            # 微信扫码登录
-│   ├── browser.go         # go-rod 浏览器
-│   └── types.go           # 数据类型
-├── pkg/                    # 独立 SDK 模块（与业务解耦）
-│   ├── chain/              # 链上操作
-│   │   ├── chain.go        # 链 API 客户端
-│   │   └── signer.go       # 交易签名
-│   ├── crypto/             # 加密模块
-│   │   ├── crypto.go       # ECDH+AES-CMAC+AES-GCM
-│   │   └── crypto_test.go  # 测试向量
-│   ├── kms/kms.go          # OpenBao KMS 集成
-│   ├── pipeline/           # 下载管线
-│   │   └── download.go     # KMS→查任务→上链→下载→解密→解包
-│   └── sdk/sdk.go          # 数据 API SDK
-├── output/                # 输出目录
-├── .claude/skills/        # Agent Skills（5 个）
-├── scripts/               # 工具脚本
-└── build.sh               # 构建脚本
+├── main.go                  # 入口
+├── server.go                # 应用容器
+├── routes.go                # HTTP 路由
+├── mcp.go                   # MCP 工具注册（16 个工具）
+├── config/config.go         # 统一配置
+├── logger/logger.go         # 统一日志
+├── handler/handler.go       # MCP 处理层
+├── service/service.go       # 业务层
+├── dianshu/                 # 典枢平台 HTTP 客户端
+│   ├── api.go               # API 端点
+│   ├── auth.go              # 微信扫码登录
+│   ├── browser.go           # go-rod 浏览器
+│   ├── cookies.go           # Cookie 持久化
+│   ├── types.go             # 数据类型
+│   └── dataset_types.go     # 数据集类型
+├── pkg/                     # 独立 SDK 模块（与业务解耦）
+│   ├── chain/               # 链上操作（chain.go + signer.go）
+│   ├── crypto/              # 加密模块（ECDH+AES-CMAC+AES-GCM）
+│   ├── kms/                 # KMS 集成
+│   ├── pipeline/            # 下载管线
+│   └── sdk/                 # 数据 API SDK
+├── .claude/skills/dianshu/  # Agent Skill（主 + 4 子 skill）
+├── build.sh                 # 构建脚本
+├── go.mod / go.sum
+└── README.md
 ```
 
 ## 技术栈
