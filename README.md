@@ -70,6 +70,12 @@ dianshu-mcp.exe -headless=true
 
 服务默认监听 `http://localhost:18061`，提供 Streamable HTTP MCP 协议。
 
+下载的数据文件和 API 调用结果保存到系统下载目录：
+- 数据文件：`~/Downloads/dianshu-mcp/downloads/`
+- API 结果：`~/Downloads/dianshu-mcp/api-data/`
+
+可通过 `-output-dir` 参数自定义根目录。
+
 ---
 
 ## 配置 AI Agent
@@ -115,31 +121,31 @@ mcp_servers:
 
 ### 第二步：导入 Skills
 
-将仓库 `.claude/skills/` 目录下的 5 个 skill 文件夹复制到你 Agent 的 skills 目录：
+复制 `.claude/skills/dianshu/` 一个文件夹即可：
+
+```
+.claude/skills/dianshu/
+├── SKILL.md           ← 主入口——意图路由 + 数据优先级
+├── login/SKILL.md     ← 登录管理
+├── order/SKILL.md     ← 订单与下载
+├── search/SKILL.md    ← 数据市场搜索
+└── api/SKILL.md       ← API 调用
+```
 
 | Agent | Skills 目录 |
 |-------|------------|
 | Claude Code | `.claude/skills/` |
 | Hermes | `~/.hermes/skills/` |
-| 其他 Agent | 查看对应文档 |
 
 ```bash
-# 示例：导入到 Claude Code
-cp -r .claude/skills/* /your-project/.claude/skills/
+# 复制到 Claude Code
+cp -r .claude/skills/dianshu /your-project/.claude/skills/
 
-# 示例：导入到 Hermes
-cp -r .claude/skills/* ~/.hermes/skills/
+# 复制到 Hermes
+cp -r .claude/skills/dianshu ~/.hermes/skills/
 ```
 
-**5 个 Skills：**
-
-| Skill | 用途 |
-|------|------|
-| `dianshu` | 主入口——数据来源优先级路由 |
-| `dianshu-login` | 扫码登录 / 检查状态 / 切换账号 |
-| `dianshu-order` | 订单管理——查订单 / 下载数据 |
-| `dianshu-search` | 数据集搜索与购买引导 |
-| `dianshu-api` | 数据 API 查询与调用 |
+导入后加载 `dianshu` 即可，子 skill 自动加载。
 
 ---
 

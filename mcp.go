@@ -44,8 +44,8 @@ func registerTools(srv *mcp.Server, h *handler.App) {
 
 	// API
 	add1(srv, "list_purchased_apis", "列出已购买的典枢 API 产品及调用信息", true, h.ListPurchasedAPIs)
-	add1(srv, "get_api_detail", "获取 API 的参数列表。拿到参数后务必先展示给用户，让用户填写具体参数值", true, h.GetAPIDetail)
-	add1(srv, "call_api", "调用数据 API。params 的值必须由用户明确提供", false, h.CallAPI)
+	add1(srv, "get_api_detail", "获取 API 的参数列表。调用后必须把参数列表展示给用户，让用户填写具体值。禁止跳过这一步直接调 call_api。", true, h.GetAPIDetail)
+	add1(srv, "call_api", "调用数据 API。params 的每个值必须由用户逐项明确提供。禁止自行推测、编造或使用默认值填充任何参数。", false, h.CallAPI)
 
 	// Dataset
 	add1(srv, "search_datasets", "搜索典枢平台上的数据集，可按关键词查找", true, h.SearchDatasets)

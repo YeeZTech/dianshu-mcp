@@ -229,8 +229,8 @@ func (app *App) GetAPIDetail(ctx context.Context, args GetAPIDetailArgs) *ToolRe
 // CallAPIArgs holds parameters for the call_api tool.
 type CallAPIArgs struct {
 	APIID  int               `json:"apiId" jsonschema:"API ID（数字），从 list_purchased_apis 获取"`
-	Params map[string]string `json:"params" jsonschema:"API 参数，key-value 格式"`
-	Method string            `json:"method,omitempty" jsonschema:"HTTP 方法（GET/POST），可选，默认从 API 详情获取"`
+	Params map[string]string `json:"params" jsonschema:"API 参数。每个 key-value 必须由用户明确提供，禁止自行填充"`
+	Method string            `json:"method,omitempty" jsonschema:"HTTP 方法，默认从 get_api_detail 获取，不要自行猜测"`
 }
 
 // CallAPI 调用已购买的数据 API。

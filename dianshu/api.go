@@ -190,14 +190,19 @@ func (c *APIClient) GetTaskByCode(ctx context.Context, taskCode string) (*TaskIt
 
 // ListMyDatasets 获取我的数据集列表
 func (c *APIClient) ListMyDatasets(ctx context.Context, pageNo, pageSize int) (*MyDatasetListResponse, error) {
-	resp, err := c.doRequest(ctx, "POST", "/system/dataset/myDataset", PageRequest{PageNo: pageNo, PageSize: pageSize})
+	body := map[string]interface{}{
+		"pageNo":         pageNo,
+		"pageSize":       pageSize,
+		"moderationFlag": "Y",
+	}
+	resp, err := c.doRequest(ctx, "POST", "/system/dataset/datasetList", body)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	rawBody, _ := io.ReadAll(resp.Body)
 	var result MyDatasetListResponse
-	if err := json.Unmarshal(body, &result); err != nil {
+	if err := json.Unmarshal(rawBody, &result); err != nil {
 		return nil, fmt.Errorf("解析数据集列表失败: %w", err)
 	}
 	// GetTaskPrivateKey

@@ -37,6 +37,8 @@ type Config struct {
 
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() *Config {
+	home, _ := os.UserHomeDir()
+	downloadsBase := filepath.Join(home, "Downloads", "dianshu-mcp")
 	return &Config{
 		Port:           18061,
 		Headless:       false,
@@ -44,7 +46,7 @@ func DefaultConfig() *Config {
 		DataAPIGateway: "https://data-api.dianshudata.com",
 		DownloadCDN:    "https://d.dianshudata.com",
 		WebURL:         "https://dianshudata.com",
-		OutputDir:      "output",
+		OutputDir:      downloadsBase,
 		DownloadsDir:   "downloads",
 		APIDataDir:     "api-data",
 		CookieFile:     "cookies.json",

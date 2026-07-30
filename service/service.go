@@ -473,7 +473,9 @@ func formatAPIList(result *dianshu.PurchasedAPIListResponse) string {
 
 func formatDatasetDetail(detail *dianshu.DatasetDetail) string {
 	if detail == nil { return "暂无数据集详情" }
-	return fmt.Sprintf("📦 %s\n卖家: %s\n价格: %.4f\n格式: %s\n大小: %d\n描述: %s\n\n📋 详情页: https://dianshudata.com/dataset/%d", detail.DatasetName, detail.CreateCompanyName, detail.Price, detail.Pattern, detail.DatasetSize, detail.Description, detail.ID)
+	return fmt.Sprintf("📦 %s\n卖家: %s\n价格: %.4f\n格式: %s\n大小: %d\n描述: %s\n\n📋 %s",
+		detail.DatasetName, detail.CreateCompanyName, detail.Price, detail.Pattern,
+		detail.DatasetSize, detail.Description, datasetPageURL(detail.ID, detail.Pattern))
 }
 
 
@@ -487,7 +489,9 @@ func formatDatasetSearch(result *dianshu.DatasetSearchResponse) string {
 	sb.WriteString(fmt.Sprintf("🔍 搜索结果（第 %d/%d 页，共 %d 条）\n\n", result.Page.PageNo, result.Page.TotalPage, result.Page.Count))
 	for i, ds := range result.Data {
 		if i >= 10 { sb.WriteString("...更多结果请翻页\n"); break }
-		sb.WriteString(fmt.Sprintf("【%d】%s\n卖家: %s | 价格: %.4f | 格式: %s\n描述: %s\n📋 https://dianshudata.com/dataset/%d\n\n", i+1, ds.DatasetName, ds.CreateCompanyName, ds.Price, ds.Pattern, ptrToStr(ds.Description, 100), ds.ID))
+		sb.WriteString(fmt.Sprintf("【%d】%s\n卖家: %s | 价格: %.4f | 格式: %s\n描述: %s\n📋 %s\n\n",
+			i+1, ds.DatasetName, ds.CreateCompanyName, ds.Price, ds.Pattern,
+			ptrToStr(ds.Description, 100), datasetPageURL(ds.ID, ds.Pattern)))
 	}
 	return sb.String()
 
@@ -538,4 +542,14 @@ func ptrToStr(s *string, max int) string {
 	if s == nil || *s == "" { return "-" }
 	if len(*s) <= max { return *s }
 	return (*s)[:max] + "..."
+}
+
+// datasetPageURL 根据 pattern 返回数据集或 API 的详情页 URL。
+// pattern=="api" 为 API 产品，其余为数据集。
+// datasetPageURL returns the detail page URL for a dataset or API product.
+func datasetPageURL(id int, pattern string) string {
+	if pattern == "api" {
+		return fmt.Sprintf("https://dianshudata.com/dataAPIDetail/%d", id)
+	}
+	return fmt.Sprintf("https://dianshudata.com/dataDetail/%d", id)
 }
