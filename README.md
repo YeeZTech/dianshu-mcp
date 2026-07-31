@@ -4,35 +4,44 @@
 
 ## 快速部署
 
+### 前提条件
+
+- **Go 1.22+**（所有平台）
+- **Git**
+
+各平台安装 Go：
+
+| 平台 | 安装方式 |
+|------|---------|
+| macOS | `brew install go` |
+| Linux | `apt install golang-go` / `yum install golang` |
+| Windows | [go.dev/dl](https://go.dev/dl/) 下载安装包，或 `winget install GoLang.Go` |
+
 ### 1. 构建
 
 ```bash
+# 所有平台通用
 git clone https://github.com/user/dianshu-mcp.git
 cd dianshu-mcp
 go build -o dianshu-mcp .
+# Windows 生成 dianshu-mcp.exe，macOS/Linux 生成 dianshu-mcp
 ```
 
 ### 2. 导入 Skills
 
-将 `skills/dianshu/` 复制到对应 Agent 的 skills 目录：
+将 `.claude/skills/dianshu/` 复制到对应 Agent 的 skills 目录：
 
-| Agent | Skills 路径 |
-|-------|------------|
-| Hermes | `~/.hermes/skills/dianshu/` |
-| Claude Code | `.claude/skills/dianshu/` |
-| Cursor | `.cursor/skills/dianshu/` |
-| Augment Code | `.augment/skills/dianshu/` |
-| Windsurf | `.windsurf/skills/dianshu/` |
-| CodeBuddy | `.codebuddy/skills/dianshu/` |
-| 通用 (Claude 系) | `.claude/skills/dianshu/` |
+| Agent | macOS / Linux | Windows |
+|-------|--------------|---------|
+| Hermes | `~/.hermes/skills/` | `%USERPROFILE%\\.hermes\\skills\\` |
+| Claude Code | `.claude/skills/` | `.claude\\skills\\` |
+| Cursor | `.cursor/skills/` | `.cursor\\skills\\` |
 
-```bash
-# Hermes
-cp -r .claude/skills/dianshu ~/.hermes/skills/
-
-# Claude Code / Cursor / 其他 Claude 系
-cp -r .claude/skills/dianshu .claude/skills/
-```
+| 平台 | 命令 |
+|------|------|
+| macOS / Linux | `cp -r .claude/skills/dianshu ~/.hermes/skills/` |
+| Windows (PowerShell) | `Copy-Item -Recurse .claude/skills/dianshu $env:USERPROFILE\\.hermes\\skills\\` |
+| Windows (CMD) | `xcopy /E /I .claude\\skills\\dianshu %USERPROFILE%\\.hermes\\skills\\` |
 
 子 skill 会在加载 `dianshu` 时自动加载，无需单独导入。
 
