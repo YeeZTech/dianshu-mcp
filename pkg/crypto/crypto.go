@@ -162,13 +162,13 @@ func DeriveAESKey(pkeyHex, skeyHex string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("公钥 hex 解码失败: %w", err)
 	}
-	if len(pkeyBytes) == 64 {
-		pkeyBytes = append([]byte{0x04}, pkeyBytes...)
-	}
-
 	skeyBytes, err := hexToBytes(skeyHex)
 	if err != nil {
 		return nil, fmt.Errorf("私钥 hex 解码失败: %w", err)
+	}
+	// 64 字节无前缀公钥补 0x04 前缀以匹配 genECDHKeyGeth 的 65 字节解析
+	if len(pkeyBytes) == 64 {
+		pkeyBytes = append([]byte{0x04}, pkeyBytes...)
 	}
 
 	sharedKey := genECDHKey(skeyBytes, pkeyBytes)
@@ -211,7 +211,16 @@ func genECDHKeyGeth(skey, pkey []byte) []byte {
 	curve := ethcrypto.S256()
 
 	priv := new(big.Int).SetBytes(skey)
-	pubX, pubY := new(big.Int).SetBytes(pkey[1:33]), new(big.Int).SetBytes(pkey[33:65])
+	// 公钥格式：65 字节（带 0x04 前缀）或 64 字节（无前缀 uncompressed）
+	var pubX, pubY *big.Int
+	if len(pkey) == 65 {
+		pubX = new(big.Int).SetBytes(pkey[1:33])
+		pubY = new(big.Int).SetBytes(pkey[33:65])
+	} else {
+		// 64 字节：x(32) || y(32)
+		pubX = new(big.Int).SetBytes(pkey[0:32])
+		pubY = new(big.Int).SetBytes(pkey[32:64])
+	}
 
 	sharedX, sharedY := curve.ScalarMult(pubX, pubY, priv.Bytes())
 
