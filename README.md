@@ -2,7 +2,136 @@
 
 典枢数据平台（dianshudata.com）的 MCP 服务——为 AI Agent 提供典枢平台的完整操作能力，包括登录、订单管理、数据下载、API 调用、数据集搜索等。
 
-## 快速开始
+## 快速部署
+
+### 1. 构建
+
+```bash
+git clone https://github.com/user/dianshu-mcp.git
+cd dianshu-mcp
+go build -o dianshu-mcp .
+```
+
+### 2. 导入 Skills
+
+将 `skills/dianshu/` 复制到对应 Agent 的 skills 目录：
+
+| Agent | Skills 路径 |
+|-------|------------|
+| Hermes | `~/.hermes/skills/dianshu/` |
+| Claude Code | `.claude/skills/dianshu/` |
+| Cursor | `.cursor/skills/dianshu/` |
+| Augment Code | `.augment/skills/dianshu/` |
+| Windsurf | `.windsurf/skills/dianshu/` |
+| CodeBuddy | `.codebuddy/skills/dianshu/` |
+| 通用 (Claude 系) | `.claude/skills/dianshu/` |
+
+```bash
+# Hermes
+cp -r .claude/skills/dianshu ~/.hermes/skills/
+
+# Claude Code / Cursor / 其他 Claude 系
+cp -r .claude/skills/dianshu .claude/skills/
+```
+
+子 skill 会在加载 `dianshu` 时自动加载，无需单独导入。
+
+### 3. 配置 MCP 连接
+
+服务默认监听 `http://localhost:18061/mcp`，使用 Streamable HTTP 传输。
+
+**Hermes**（`~/.hermes/config.yaml` 或 `hermes config set`）：
+
+```yaml
+mcp_servers:
+  dianshu-mcp:
+    transport: streamable-http
+    url: http://localhost:18061/mcp
+```
+
+**Claude Code**（`.claude/settings.json` 或 `cla` 全局配置）：
+
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "type": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
+```
+
+**Cursor**（`.cursor/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "transport": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
+```
+
+**Augment Code**（`.augment/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "transport": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
+```
+
+**Windsurf**（`.windsurf/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "transport": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
+```
+
+**VS Code / Cline**（`mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "transport": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
+```
+
+### 4. 启动服务
+
+```bash
+./dianshu-mcp -headless=true
+```
+
+### 5. 开始使用
+
+Agent 连接成功后，说「登录典枢」即可扫码登录。之后可用自然语言操作：
+
+- 「帮我查已购数据」→ 列出所有订单
+- 「下载任务 xxx」→ 自动下载并解密
+- 「搜索天气数据集」→ 搜索平台数据
+- 「调用小红书 API」→ 调用已购数据 API
+
+---
+
+## 手动安装
 
 ### 前提条件
 

@@ -12,7 +12,7 @@ description: |
 
 调用 `list_purchased_apis`。
 
-## 调用流程（两步，顺序不可颠倒）
+## 调用流程（严格三步）
 
 ### 第一步：获取参数
 
@@ -43,7 +43,7 @@ call_api {
 
 用户："用微博热搜查热搜"
 
-1. `list_purchased_apis` → apiId=10736
+1. `list_purchased_apis` → 找到 apiId=10736
 2. `get_api_detail {"apiId": 10736}` → 展示参数列表
 3. 询问："该 API 有以下参数：page(页码)、pageSize(每页数量)。请告诉我你需要什么值？"
 4. 用户回复 "page: 1" → `call_api {"apiId": 10736, "params": {"page": "1"}}`
