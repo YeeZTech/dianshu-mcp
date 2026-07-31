@@ -158,7 +158,6 @@ type TaskItem struct {
 	PrivateKey         string                   `json:"privateKey"`
 	PublishStatus      int                      `json:"publishStatus"`
 	EncryptFileHash    string                   `json:"encryptFileHash"`
-	ClientDownloadURL  string                   `json:"clientDownloadUrl"`
 }
 
 // TaskPrivateKeyResult 任务密封文件私钥
