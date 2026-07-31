@@ -458,7 +458,7 @@ func formatAPIList(result *dianshu.PurchasedAPIListResponse) string {
 	var sb strings.Builder
 	// formatHomepageRecommend formats homepage recommendations.
 	for i, item := range result.Data {
-		sb.WriteString(fmt.Sprintf("【API %d】\n名称: %s\nAPI ID: %d\n调用余量: %s\n\n", i+1, item.APIName, item.APIID, item.Usage))
+		sb.WriteString(fmt.Sprintf("【API %d】\n名称: %s\nAPI ID: %d\n已用/总数: %s\n\n", i+1, item.APIName, item.APIID, item.Usage))
 	}
 	return sb.String()
 }
