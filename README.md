@@ -21,7 +21,7 @@
 
 ```bash
 # 所有平台通用
-git clone https://github.com/user/dianshu-mcp.git
+git clone https://github.com/YeeZTech/dianshu-mcp.git
 cd dianshu-mcp
 go build -o dianshu-mcp .
 # Windows 生成 dianshu-mcp.exe，macOS/Linux 生成 dianshu-mcp
