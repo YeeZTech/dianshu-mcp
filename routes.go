@@ -5,26 +5,43 @@ package main
 
 import (
 	"net/http"
+	"time"
 
+	"dianshu-mcp/config"
 	"dianshu-mcp/handler"
 
+	sentrygin "github.com/getsentry/sentry-go/gin"
+	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/gin-gonic/gin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // setupRoutes configures HTTP routes including MCP endpoint and health check.
-func setupRoutes(h *handler.App, mcpServer *mcp.Server) *gin.Engine {
+func setupRoutes(cfg *config.Config, h *handler.App, mcpServer *mcp.Server) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(gin.Logger(), gin.Recovery())
+	router.Use(gin.Logger())
+	if cfg.SentryDSN != "" {
+		router.Use(sentrygin.New(sentrygin.Options{
+			Repanic: true,
+		}))
+	}
+	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
 
 	router.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 
-	mcpHandler := mcp.NewStreamableHTTPHandler(
+	var mcpHandler http.Handler = mcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *mcp.Server { return mcpServer },
 		&mcp.StreamableHTTPOptions{JSONResponse: true},
 	)
+	if cfg.SentryDSN != "" {
+		mcpHandler = sentryhttp.New(sentryhttp.Options{
+			Repanic:         true,
+			WaitForDelivery: false,
+			Timeout:         2 * time.Second,
+		}).Handle(mcpHandler)
+	}
 	router.Any("/mcp", gin.WrapH(mcpHandler))
 	router.Any("/mcp/*path", gin.WrapH(mcpHandler))
 

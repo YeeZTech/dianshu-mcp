@@ -74,6 +74,7 @@ func NewClient(appCode, uniqueAPIID string) (*Client, error) {
 	c.enclave = r.Data.EnclaveHash
 	return c, nil
 }
+
 // genShuInfo generates the shuInfo authentication header.
 
 func (c *Client) genShuInfo() string {
@@ -86,17 +87,16 @@ func (c *Client) genShuInfo() string {
 	sigData := append(dianBytes, encBytes...)
 	sig, _ := crypto.SignMessage(c.localPriv, sigData)
 	m := map[string]string{
-		"dataHash":                dataHash,
-		"dataShuPublicKey":        c.localPub,
-		"encryptedShuPrivateKey":  hex.EncodeToString(enc),
-		"shuKeyForwardSignature":  hex.EncodeToString(sig),
-		"allowedEnclaveHash":      c.enclave,
+		"dataHash":               dataHash,
+		"dataShuPublicKey":       c.localPub,
+		"encryptedShuPrivateKey": hex.EncodeToString(enc),
+		"shuKeyForwardSignature": hex.EncodeToString(sig),
+		"allowedEnclaveHash":     c.enclave,
 	}
 	b, _ := json.Marshal(m)
 	return string(b)
-// encryptParams encrypts API parameters for secure transmission.
+	// encryptParams encrypts API parameters for secure transmission.
 }
-
 
 // encryptParams 加密 API 参数用于安全传输。
 // encryptParams encrypts API parameters for secure transmission.
@@ -120,12 +120,11 @@ func (c *Client) encryptParams(method string, queryParams, bodyParams map[string
 		// Post 以 POST 方法调用数据 API。
 		// Post calls the data API with POST method.
 
-		"shu_pkey":        c.localPub,
+		"shu_pkey": c.localPub,
 	})
 	// Post calls the data API with POST method.
 	return hex.EncodeToString(inner)
 }
-
 
 // Post POST 方式调用 API。
 // Post calls the data API with POST method.
@@ -141,7 +140,6 @@ func (c *Client) Post(bodyParams map[string]string) (string, error) {
 	return c.doHTTP("POST", "/api/post/"+c.uniqueID, paramsHex, shuInfo)
 }
 
-
 // doHTTP 发送 HTTP 请求到数据 API 网关。
 // doHTTP sends an HTTP request to the data API gateway.
 
@@ -155,7 +153,6 @@ func (c *Client) Get(queryParams map[string]string) (string, error) {
 	shuInfo := c.genShuInfo()
 	return c.doHTTP("GET", "/api/get/"+c.uniqueID+"?"+paramsHex, paramsHex, shuInfo)
 }
-
 
 // doHTTP 发送 HTTP 请求到数据 API 网关。
 // doHTTP sends an HTTP request to the data API gateway.
@@ -203,7 +200,7 @@ func (c *Client) doHTTP(method, path, paramsHex, shuInfo string) (string, error)
 			}
 			return string(dec), nil
 		}
-	// GetAPIDetail
+		// GetAPIDetail
 	}
 	return string(raw), nil
 }
@@ -228,23 +225,22 @@ func GetAPIDetail(ctx context.Context, httpClient *http.Client, apiID int, token
 	// GetBuyerAPIList retrieves the buyer's purchased API list.
 
 	var result struct {
-		ResultCode int        `json:"resultCode"`
+		ResultCode int                `json:"resultCode"`
 		Data       *dianshu.APIDetail `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 
-	// GetBuyerAPIList 获取买家 API 列表。
-	// GetBuyerAPIList retrieves purchased API list.
+		// GetBuyerAPIList 获取买家 API 列表。
+		// GetBuyerAPIList retrieves purchased API list.
 
-	// GetBuyerAPIList retrieves the buyer's purchased API list.
+		// GetBuyerAPIList retrieves the buyer's purchased API list.
 	}
 	if result.ResultCode != 100 || result.Data == nil {
 		return nil, fmt.Errorf("查询失败: resultCode=%d", result.ResultCode)
 	}
 	return result.Data, nil
 }
-
 
 // GetBuyerAPIList 获取买家已购 API 列表。
 // GetBuyerAPIList retrieves purchased API list.
@@ -263,8 +259,8 @@ func GetBuyerAPIList(ctx context.Context, httpClient *http.Client, token string,
 	}
 	defer resp.Body.Close()
 	var result struct {
-		ResultCode int             `json:"resultCode"`
-		Data       []BuyerAPIItem  `json:"data"`
+		ResultCode int            `json:"resultCode"`
+		Data       []BuyerAPIItem `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err

@@ -1,10 +1,14 @@
 # Build output
 dianshu-mcp
 dianshu-mcp.exe
+build*.sh
+dist/
 
 # Runtime data
 cookies.json
 *.log
+.env
+.env.*
 
 # IDE
 .idea/

@@ -8,20 +8,29 @@ import (
 	"dianshu-mcp/config"
 	"dianshu-mcp/handler"
 	"dianshu-mcp/logger"
+	"dianshu-mcp/pkg/observability"
 	"dianshu-mcp/service"
+	"time"
+
+	"github.com/getsentry/sentry-go"
 )
 
 // main is the application entry point.
 func main() {
 	cfg := config.ParseFlags()
+	observability.ApplySentryDefaults(cfg)
 
 	logger.Info("dianshu-mcp starting", "port", cfg.Port, "headless", cfg.Headless)
+
+	if observability.InitSentry(cfg) {
+		defer sentry.Flush(2 * time.Second)
+	}
 
 	svc := service.New(cfg)
 	h := handler.NewApp(svc)
 
 	srv := newServer(h)
-	if err := srv.start(cfg.Port); err != nil {
+	if err := srv.start(cfg); err != nil {
 		logger.Fatal("server failed to start", "error", err)
 	}
 }

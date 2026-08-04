@@ -17,16 +17,21 @@ type Config struct {
 	Port     int
 	Headless bool
 
+	// Observability
+	SentryDSN         string
+	SentryEnvironment string
+	SentryRelease     string
+
 	// Dianshu API
-	BaseAPIURL       string
-	DataAPIGateway   string
-	DownloadCDN      string
-	WebURL           string
+	BaseAPIURL     string
+	DataAPIGateway string
+	DownloadCDN    string
+	WebURL         string
 
 	// Output directories
-	OutputDir       string
-	DownloadsDir    string
-	APIDataDir      string
+	OutputDir    string
+	DownloadsDir string
+	APIDataDir   string
 
 	// Cookie
 	CookieFile string
@@ -40,16 +45,19 @@ func DefaultConfig() *Config {
 	home, _ := os.UserHomeDir()
 	downloadsBase := filepath.Join(home, "Downloads", "dianshu-mcp")
 	return &Config{
-		Port:           18061,
-		Headless:       false,
-		BaseAPIURL:     "https://api.dianshudata.com",
-		DataAPIGateway: "https://data-api.dianshudata.com",
-		DownloadCDN:    "https://d.dianshudata.com",
-		WebURL:         "https://dianshudata.com",
-		OutputDir:      downloadsBase,
-		DownloadsDir:   "downloads",
-		APIDataDir:     "api-data",
-		CookieFile:     "cookies.json",
+		Port:                   18061,
+		Headless:               false,
+		SentryDSN:              "",
+		SentryEnvironment:      "local",
+		SentryRelease:          "",
+		BaseAPIURL:             "https://api.dianshudata.com",
+		DataAPIGateway:         "https://data-api.dianshudata.com",
+		DownloadCDN:            "https://d.dianshudata.com",
+		WebURL:                 "https://dianshudata.com",
+		OutputDir:              downloadsBase,
+		DownloadsDir:           "downloads",
+		APIDataDir:             "api-data",
+		CookieFile:             "cookies.json",
 		ChainTaskCheckInterval: 2,
 	}
 }
@@ -61,6 +69,9 @@ func ParseFlags() *Config {
 
 	flag.IntVar(&cfg.Port, "port", cfg.Port, "HTTP server port")
 	flag.BoolVar(&cfg.Headless, "headless", cfg.Headless, "Run browser in headless mode")
+	flag.StringVar(&cfg.SentryDSN, "sentry-dsn", cfg.SentryDSN, "Sentry DSN")
+	flag.StringVar(&cfg.SentryEnvironment, "sentry-env", cfg.SentryEnvironment, "Sentry environment")
+	flag.StringVar(&cfg.SentryRelease, "sentry-release", cfg.SentryRelease, "Sentry release")
 	flag.StringVar(&cfg.BaseAPIURL, "api-url", cfg.BaseAPIURL, "Dianshu API base URL")
 	flag.StringVar(&cfg.CookieFile, "cookie-file", cfg.CookieFile, "Cookie file path")
 	flag.StringVar(&cfg.OutputDir, "output-dir", cfg.OutputDir, "Output root directory")
@@ -75,6 +86,15 @@ func ParseFlags() *Config {
 	}
 	if v := os.Getenv("DS_COOKIE_FILE"); v != "" {
 		cfg.CookieFile = v
+	}
+	if v := os.Getenv("DS_SENTRY_DSN"); v != "" {
+		cfg.SentryDSN = v
+	}
+	if v := os.Getenv("DS_SENTRY_ENV"); v != "" {
+		cfg.SentryEnvironment = v
+	}
+	if v := os.Getenv("DS_SENTRY_RELEASE"); v != "" {
+		cfg.SentryRelease = v
 	}
 
 	return cfg
@@ -106,6 +126,7 @@ func atoiOrDefault(s string, def int) int {
 	}
 	return n
 }
+
 // itoa converts an int to its decimal string representation.
 
 func itoa(n int) string {

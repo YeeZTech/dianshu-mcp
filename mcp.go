@@ -64,7 +64,9 @@ func registerTools(srv *mcp.Server, h *handler.App) {
 // add0 registers a tool with no arguments.
 func add0(srv *mcp.Server, name, desc string, readOnly, destructive bool, fn func(context.Context) *handler.ToolResult) {
 	ann := &mcp.ToolAnnotations{Title: name, ReadOnlyHint: readOnly}
-	if destructive { ann.DestructiveHint = boolPtr(true) }
+	if destructive {
+		ann.DestructiveHint = boolPtr(true)
+	}
 	mcp.AddTool(srv,
 		&mcp.Tool{Name: name, Description: desc, Annotations: ann},
 		withRecover(name, func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
@@ -85,9 +87,8 @@ func add1[T any](srv *mcp.Server, name, desc string, readOnly bool, fn func(cont
 			return toCallResult(r), nil, nil
 		}),
 	)
-// withRecover wraps a tool handler with panic recovery.
+	// withRecover wraps a tool handler with panic recovery.
 }
-
 
 // withRecover 包装工具 handler 增加 panic 恢复。
 // withRecover wraps a tool handler with panic recovery.
@@ -101,10 +102,9 @@ func withRecover[T any](name string, fn func(context.Context, *mcp.CallToolReque
 			}
 		}()
 		return fn(ctx, req, args)
-	// toCallResult converts a ToolResult to an MCP CallToolResult.
+		// toCallResult converts a ToolResult to an MCP CallToolResult.
 	}
 }
-
 
 // toCallResult 转换 ToolResult 为 MCP CallToolResult。
 // toCallResult converts a ToolResult to an MCP CallToolResult.

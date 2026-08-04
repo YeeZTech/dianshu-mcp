@@ -110,6 +110,7 @@ func FindElementByText(page *rod.Page, text string) (*rod.Element, error) {
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && containsStr(s, substr)
 }
+
 // containsStr checks if a string contains a substring.
 
 func containsStr(s, substr string) bool {

@@ -4,22 +4,33 @@
 
 典枢数据平台（dianshudata.com）的 MCP 服务——为 AI Agent 提供典枢平台的完整操作能力，包括登录、订单管理、数据下载、API 调用、数据集搜索等。
 
-## 快速部署
+## 部署说明
 
-### 前提条件
+提供两种方式：
+- **方式一（推荐）**：从 GitHub Releases 下载对应系统的 zip，直接运行
+- **方式二**：拉取源码并自行编译
 
+### 方式一（推荐）：从 Releases 安装
+
+1. 下载最新 Release 的压缩包（根据系统选择）：
+   - macOS Apple Silicon（M1/M2/M3）：`macos-arm64.zip`
+   - macOS Intel：`macos-amd64.zip`
+   - Linux x86_64：`linux-amd64.zip`
+   - Linux arm64：`linux-arm64.zip`
+   - Windows x86_64：`windows-amd64.zip`
+   - Windows arm64：`windows-arm64.zip`
+2. 解压后会得到：
+   - 可执行文件：`dianshu-mcp`（Windows 为 `dianshu-mcp.exe`）
+   - skills 目录：`skills/`
+3. 安装 skills：将 `skills/dianshu/` 复制到对应 Agent 的 skills 目录（见下文“导入 Skills”）
+4. 启动 MCP 服务（见下文“启动服务”）
+5. 配置 Agent 连接 MCP（见下文“配置 MCP 连接”）
+
+### 方式二：源码编译安装
+
+#### 前提条件
 - **Go 1.22+**（所有平台）
 - **Git**
-
-各平台安装 Go：
-
-| 平台 | 安装方式 |
-|------|---------|
-| macOS | `brew install go` |
-| Linux | `apt install golang-go` / `yum install golang` |
-| Windows | [go.dev/dl](https://go.dev/dl/) 下载安装包，或 `winget install GoLang.Go` |
-
-### 1. 构建
 
 ```bash
 git clone https://github.com/YeeZTech/dianshu-mcp.git
@@ -27,7 +38,7 @@ cd dianshu-mcp
 go build -o dianshu-mcp .
 ```
 
-### 2. 导入 Skills
+### 导入 Skills
 
 将 `.claude/skills/dianshu/` 复制到对应 Agent 的 skills 目录：
 
@@ -45,7 +56,7 @@ go build -o dianshu-mcp .
 
 子 skill 会在加载 `dianshu` 时自动加载，无需单独导入。
 
-### 3. 配置 MCP 连接
+### 配置 MCP 连接
 
 服务默认监听 `http://localhost:18061/mcp`，使用 Streamable HTTP 传输。
 
@@ -123,13 +134,13 @@ mcp_servers:
 }
 ```
 
-### 4. 启动服务
+### 启动服务
 
 ```bash
 ./dianshu-mcp -headless=true
 ```
 
-### 5. 开始使用
+### 开始使用
 
 Agent 连接成功后，说「登录典枢」即可扫码登录。之后可用自然语言操作：
 

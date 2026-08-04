@@ -7,6 +7,7 @@ package handler
 import (
 	"context"
 
+	"dianshu-mcp/pkg/observability"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -74,12 +75,24 @@ func newLoginGuard() *loginGuard { return &loginGuard{mu: make(chan struct{}, 1)
 // tryLock 尝试获取登录锁，已有在进行中的登录则返回 false。
 // tryLock attempts to acquire the login lock.
 func (g *loginGuard) tryLock() bool {
-	select { case g.mu <- struct{}{}: g.inFlight = true; return true; default: return false }
+	select {
+	case g.mu <- struct{}{}:
+		g.inFlight = true
+		return true
+	default:
+		return false
+	}
 }
 
 // unlock 释放登录锁。
 // unlock releases the login lock.
-func (g *loginGuard) unlock() { select { case <-g.mu: g.inFlight = false; default: } }
+func (g *loginGuard) unlock() {
+	select {
+	case <-g.mu:
+		g.inFlight = false
+	default:
+	}
+}
 
 // inProgress 返回是否已有登录流程在进行。
 // inProgress reports whether a login flow is active.
@@ -99,6 +112,15 @@ func errorResult(s string) *ToolResult {
 	return &ToolResult{Content: []mcp.Content{&mcp.TextContent{Text: s}}, IsError: true}
 }
 
+func captureToolError(ctx context.Context, tool string, err error) {
+	observability.CaptureMCPToolError(ctx, tool, err)
+}
+
+func errorResultErr(ctx context.Context, tool string, prefix string, err error) *ToolResult {
+	captureToolError(ctx, tool, err)
+	return errorResult(prefix + err.Error())
+}
+
 // ── 认证 / Auth ──────────────────────────────────────────
 
 // CheckLoginStatus 检查典枢登录状态。
@@ -106,7 +128,7 @@ func errorResult(s string) *ToolResult {
 func (app *App) CheckLoginStatus(ctx context.Context) *ToolResult {
 	loggedIn, nickname, err := app.Service.CheckLogin()
 	if err != nil {
-		return errorResult("检查登录状态失败: " + err.Error())
+		return errorResultErr(ctx, "check_login_status", "检查登录状态失败: ", err)
 	}
 	if !loggedIn {
 		return textResult("未登录")
@@ -124,7 +146,7 @@ func (app *App) GetLoginQRCode(ctx context.Context) *ToolResult {
 	t, img, err := app.Service.GetLoginQRCode()
 	if err != nil {
 		app.loginMu.unlock()
-		return errorResult("获取登录二维码失败: " + err.Error())
+		return errorResultErr(ctx, "get_login_qrcode", "获取登录二维码失败: ", err)
 	}
 	loggedIn, nickname, _ := app.Service.CheckLogin()
 	app.loginMu.unlock()
@@ -141,7 +163,7 @@ func (app *App) GetLoginQRCode(ctx context.Context) *ToolResult {
 // DeleteCookies handles the delete_cookies MCP tool.
 func (app *App) DeleteCookies(ctx context.Context) *ToolResult {
 	if err := app.Service.DeleteCookies(); err != nil {
-		return errorResult("清除 cookies 失败: " + err.Error())
+		return errorResultErr(ctx, "delete_cookies", "清除 cookies 失败: ", err)
 	}
 	return textResult("已清除 cookies，登录状态已重置。")
 }
@@ -160,7 +182,7 @@ type ListOrdersArgs struct {
 func (app *App) ListOrders(ctx context.Context, args ListOrdersArgs) *ToolResult {
 	r, err := app.Service.ListOrders(args.OrderType, args.OrderCode)
 	if err != nil {
-		return errorResult("查询订单失败: " + err.Error())
+		return errorResultErr(ctx, "list_orders", "查询订单失败: ", err)
 	}
 	return textResult(r)
 }
@@ -173,7 +195,7 @@ type ListDownloadsArgs struct{}
 func (app *App) ListDownloads(ctx context.Context, args ListDownloadsArgs) *ToolResult {
 	r, err := app.Service.ListDownloads()
 	if err != nil {
-		return errorResult("查询可下载列表失败: " + err.Error())
+		return errorResultErr(ctx, "list_downloads", "查询可下载列表失败: ", err)
 	}
 	return textResult(r)
 }
@@ -189,7 +211,7 @@ type DownloadOrderArgs struct {
 func (app *App) DownloadOrder(ctx context.Context, args DownloadOrderArgs) *ToolResult {
 	r, err := app.Service.DownloadOrder(args.TaskCode)
 	if err != nil {
-		return errorResult("下载失败: " + err.Error())
+		return errorResultErr(ctx, "download_order", "下载失败: ", err)
 	}
 	return textResult(r)
 }
@@ -204,7 +226,7 @@ type ListPurchasedAPIsArgs struct{}
 func (app *App) ListPurchasedAPIs(ctx context.Context, args ListPurchasedAPIsArgs) *ToolResult {
 	r, err := app.Service.ListPurchasedAPIs()
 	if err != nil {
-		return errorResult("查询已购 API 失败: " + err.Error())
+		return errorResultErr(ctx, "list_purchased_apis", "查询已购 API 失败: ", err)
 	}
 	return textResult(r)
 }
@@ -220,7 +242,7 @@ type GetAPIDetailArgs struct {
 func (app *App) GetAPIDetail(ctx context.Context, args GetAPIDetailArgs) *ToolResult {
 	r, err := app.Service.GetAPIDetail(args.APIID)
 	if err != nil {
-		return errorResult("获取 API 详情失败: " + err.Error())
+		return errorResultErr(ctx, "get_api_detail", "获取 API 详情失败: ", err)
 	}
 	return textResult(r)
 }
@@ -238,7 +260,7 @@ type CallAPIArgs struct {
 func (app *App) CallAPI(ctx context.Context, args CallAPIArgs) *ToolResult {
 	r, err := app.Service.CallAPI(args.APIID, args.Params, args.Method)
 	if err != nil {
-		return errorResult("调用 API 失败: " + err.Error())
+		return errorResultErr(ctx, "call_api", "调用 API 失败: ", err)
 	}
 	return textResult(r)
 }
@@ -264,7 +286,7 @@ func (app *App) SearchDatasets(ctx context.Context, args SearchDatasetsArgs) *To
 	}
 	r, err := app.Service.SearchDatasets(args.Keyword, args.PageNo, args.PageSize)
 	if err != nil {
-		return errorResult("搜索数据集失败: " + err.Error())
+		return errorResultErr(ctx, "search_datasets", "搜索数据集失败: ", err)
 	}
 	return textResult(r)
 }
@@ -280,7 +302,7 @@ type DatasetDetailArgs struct {
 func (app *App) DatasetDetail(ctx context.Context, args DatasetDetailArgs) *ToolResult {
 	r, err := app.Service.GetDatasetDetail(args.DatasetID)
 	if err != nil {
-		return errorResult("获取数据集详情失败: " + err.Error())
+		return errorResultErr(ctx, "dataset_detail", "获取数据集详情失败: ", err)
 	}
 	return textResult(r)
 }
@@ -290,7 +312,7 @@ func (app *App) DatasetDetail(ctx context.Context, args DatasetDetailArgs) *Tool
 func (app *App) HomepageRecommend(ctx context.Context) *ToolResult {
 	r, err := app.Service.GetHomepageRecommend()
 	if err != nil {
-		return errorResult("获取首页推荐失败: " + err.Error())
+		return errorResultErr(ctx, "homepage_recommend", "获取首页推荐失败: ", err)
 	}
 	return textResult(r)
 }
@@ -313,7 +335,7 @@ func (app *App) MyDatasets(ctx context.Context, args MyDatasetsArgs) *ToolResult
 	}
 	r, err := app.Service.ListMyDatasets(args.PageNo, args.PageSize)
 	if err != nil {
-		return errorResult("获取我的数据集失败: " + err.Error())
+		return errorResultErr(ctx, "my_datasets", "获取我的数据集失败: ", err)
 	}
 	return textResult(r)
 }
@@ -325,7 +347,7 @@ func (app *App) MyDatasets(ctx context.Context, args MyDatasetsArgs) *ToolResult
 func (app *App) GetMyProfile(ctx context.Context) *ToolResult {
 	r, err := app.Service.GetMyProfile()
 	if err != nil {
-		return errorResult("获取资料失败: " + err.Error())
+		return errorResultErr(ctx, "get_my_profile", "获取资料失败: ", err)
 	}
 	return textResult(r)
 }
@@ -335,7 +357,7 @@ func (app *App) GetMyProfile(ctx context.Context) *ToolResult {
 func (app *App) GetMyWallet(ctx context.Context) *ToolResult {
 	r, err := app.Service.GetMyWallet()
 	if err != nil {
-		return errorResult("获取钱包失败: " + err.Error())
+		return errorResultErr(ctx, "get_my_wallet", "获取钱包失败: ", err)
 	}
 	return textResult(r)
 }
@@ -358,7 +380,7 @@ func (app *App) ListWalletTransactions(ctx context.Context, args ListWalletTrans
 	}
 	r, err := app.Service.ListWalletTransactions(args.PageNo, args.PageSize)
 	if err != nil {
-		return errorResult("查询交易明细失败: " + err.Error())
+		return errorResultErr(ctx, "list_wallet_transactions", "查询交易明细失败: ", err)
 	}
 	return textResult(r)
 }

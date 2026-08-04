@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 
+	"dianshu-mcp/config"
 	"dianshu-mcp/handler"
 	"dianshu-mcp/logger"
 
@@ -25,9 +26,9 @@ func newServer(h *handler.App) *server {
 }
 
 // start begins the HTTP server on the given port.
-func (s *server) start(port int) error {
-	router := setupRoutes(s.handler, s.mcpServer)
-	addr := fmt.Sprintf(":%d", port)
-	logger.Info("HTTP server starting", "port", port)
+func (s *server) start(cfg *config.Config) error {
+	router := setupRoutes(cfg, s.handler, s.mcpServer)
+	addr := fmt.Sprintf(":%d", cfg.Port)
+	logger.Info("HTTP server starting", "port", cfg.Port)
 	return router.Run(addr)
 }

@@ -25,6 +25,7 @@ func TestHexToBytesToHex(t *testing.T) {
 		t.Fatalf("hex 往返失败: got=%s want=%s", hexStr, original)
 	}
 }
+
 // TestPublicKeyFromPrivate
 
 func TestPublicKeyFromPrivate(t *testing.T) {
@@ -35,7 +36,7 @@ func TestPublicKeyFromPrivate(t *testing.T) {
 	if pubKey != testPublicKey {
 		t.Fatalf("公钥不匹配:\ngot:  %s\nwant: %s", pubKey, testPublicKey)
 	}
-// TestGenerateAESKeyFrom
+	// TestGenerateAESKeyFrom
 }
 
 func TestGenerateAESKeyFrom(t *testing.T) {
@@ -64,7 +65,7 @@ func TestAESCmac(t *testing.T) {
 	}
 	result3, _ := aesCmac(cmacKeyBytes, []byte("world"))
 	if bytes.Equal(result, result3) {
-	// TestEncryptDecryptRoundtrip
+		// TestEncryptDecryptRoundtrip
 		t.Fatal("aesCmac 不同输入应产生不同结果")
 	}
 }
@@ -144,7 +145,7 @@ func TestEncryptDecryptRoundtrip2(t *testing.T) {
 	decrypted, err := decryptMessage(testPrivateKey, cipherPkg, 0x02)
 	if err != nil {
 		t.Fatalf("解密失败: %v", err)
-	// TestForwardSecretKeyRoundtrip
+		// TestForwardSecretKeyRoundtrip
 	}
 	if !bytes.Equal(decrypted, plaintext) {
 		t.Fatalf("往返失败")
@@ -162,7 +163,7 @@ func TestForwardSecretKeyRoundtrip(t *testing.T) {
 	decrypted, err := DecryptForwardMessage(testPrivateKey, encryptedSkey)
 	if err != nil {
 		t.Fatalf("解密转发消息失败: %v", err)
-	// TestSignMessage
+		// TestSignMessage
 	}
 	expectedBytes, _ := hexToBytes(testPrivateKey)
 	if !bytes.Equal(decrypted, expectedBytes) {

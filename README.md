@@ -4,22 +4,35 @@
 
 MCP server for the [Dianshu Data Platform](https://dianshudata.com) — giving AI Agents full access to dataset trading, including login, order management, encrypted downloads, API calls, and marketplace search.
 
-## Quick Start
+## For AI Agents
 
-### Prerequisites
+Users typically provide this GitHub repository link to an AI agent, and the agent installs the MCP server and skills by following one of the flows below.
 
+Two installation options:
+- **Option A (Recommended)**: Download the latest Release zip for your OS and run it
+- **Option B**: Build from source
+
+### Option A (Recommended): Install from Releases
+
+1. Download the latest Release asset (pick one):
+   - macOS Apple Silicon (M1/M2/M3): `macos-arm64.zip`
+   - macOS Intel: `macos-amd64.zip`
+   - Linux x86_64: `linux-amd64.zip`
+   - Linux arm64: `linux-arm64.zip`
+   - Windows x86_64: `windows-amd64.zip`
+   - Windows arm64: `windows-arm64.zip`
+2. Unzip to get:
+   - Binary: `dianshu-mcp` (Windows: `dianshu-mcp.exe`)
+   - Skills: `skills/`
+3. Install skills: copy `skills/dianshu/` to your agent's skills directory (see “Import Skills”)
+4. Launch the MCP server (see “Launch”)
+5. Configure your agent to connect to MCP (see “Configure MCP”)
+
+### Option B: Build from source
+
+#### Prerequisites
 - **Go 1.22+** (all platforms)
 - **Git**
-
-Install Go:
-
-| Platform | Command |
-|----------|---------|
-| macOS | `brew install go` |
-| Linux | `apt install golang-go` / `yum install golang` |
-| Windows | [go.dev/dl](https://go.dev/dl/) or `winget install GoLang.Go` |
-
-### 1. Build
 
 ```bash
 git clone https://github.com/YeeZTech/dianshu-mcp.git
@@ -27,7 +40,7 @@ cd dianshu-mcp
 go build -o dianshu-mcp .
 ```
 
-### 2. Import Skills
+### Import Skills
 
 Copy `.claude/skills/dianshu/` to your AI agent's skills directory:
 
@@ -45,7 +58,7 @@ Copy `.claude/skills/dianshu/` to your AI agent's skills directory:
 
 Sub-skills are auto-loaded when loading `dianshu` — no separate import needed.
 
-### 3. Configure MCP
+### Configure MCP
 
 Service listens on `http://localhost:18061/mcp` via Streamable HTTP.
 
@@ -123,13 +136,13 @@ mcp_servers:
 }
 ```
 
-### 4. Launch
+### Launch
 
 ```bash
 ./dianshu-mcp -headless=true
 ```
 
-### 5. Get Started
+### Get Started
 
 After connecting your agent, say "Log in to Dianshu" to scan the QR code with WeChat. Then use natural language:
 
