@@ -22,9 +22,9 @@
 2. 解压后会得到：
    - 可执行文件：`dianshu-mcp`（Windows 为 `dianshu-mcp.exe`）
    - skills 目录：`skills/`
-3. 安装 skills：将 `skills/dianshu/` 复制到对应 Agent 的 skills 目录（见下文“导入 Skills”）
-4. 启动 MCP 服务（见下文“启动服务”）
-5. 配置 Agent 连接 MCP（见下文“配置 MCP 连接”）
+3. 安装 skills：将 `skills/dianshu/` 复制到对应 Agent 的 skills 目录（见下文「导入 Skills」）
+4. 启动 MCP 服务（见下文「启动服务」）
+5. 配置 Agent 连接 MCP（见下文「配置 MCP 连接」）
 
 ### 方式二：源码编译安装
 
@@ -44,14 +44,14 @@ go build -o dianshu-mcp .
 
 | Agent | macOS / Linux | Windows |
 |-------|--------------|---------|
-| Hermes | `~/.hermes/skills/` | `%USERPROFILE%\.hermes\skills\` |
-| Claude Code | `.claude/skills/` | `.claude\skills\` |
-| Cursor | `.cursor/skills/` | `.cursor\skills\` |
+| Hermes | `~/.hermes/skills/` | `%USERPROFILE%\\.hermes\\skills\\` |
+| Claude Code | `.claude/skills/` | `.claude\\skills\\` |
+| Cursor | `.cursor/skills/` | `.cursor\\skills\\` |
 
 | 平台 | 命令 |
 |------|------|
 | macOS / Linux | `cp -r .skill/dianshu ~/.hermes/skills/` |
-| Windows (PowerShell) | `Copy-Item -Recurse .skill/dianshu $env:USERPROFILE\.hermes\skills\` |
+| Windows (PowerShell) | `Copy-Item -Recurse .skill/dianshu $env:USERPROFILE\\.hermes\\skills\\` |
 | Windows (CMD) | `xcopy /E /I .skill\\dianshu %USERPROFILE%\\.hermes\\skills\\` |
 
 子 skill 会在加载 `dianshu` 时自动加载，无需单独导入。
@@ -59,6 +59,10 @@ go build -o dianshu-mcp .
 ### 配置 MCP 连接
 
 服务默认监听 `http://localhost:18061/mcp`，使用 Streamable HTTP 传输。
+
+> **适用所有 Agent 的通用配置**：添加一个 MCP 服务器，传输方式选「Streamable HTTP」，地址填 `http://localhost:18061/mcp`。
+
+各 Agent 具体配置方法：
 
 **Hermes**（`~/.hermes/config.yaml` 或 `hermes config set`）：
 
@@ -151,6 +155,25 @@ Agent 连接成功后，说「登录典枢」即可扫码登录。之后可用�
 
 ---
 
+## 常见问题
+
+### 安装后 Agent 没有加载到 MCP 工具？
+
+这是因为 **Skills 和 MCP 是两个独立的配置**，漏了任何一个都会失败。请逐一确认：
+
+1. **Skills 已复制？** — 确认 `.skill/dianshu/` 已复制到 Agent 的 skills 目录
+2. **MCP 已配置？** — 确认 MCP 配置文件中已添加 `http://localhost:18061/mcp`
+3. **服务已启动？** — 确认 `dianshu-mcp` 正在运行
+4. **重启 Agent** — 部分 Agent 需要重启才能加载新的 MCP 连接
+
+如果仍不行，手动调用 `check_login_status` 工具验证连接。
+
+### 不知道用哪个 Agent？
+
+所有主流 AI 编程 Agent 都支持 MCP 协议，配置方式大同小异——找到一个「MCP 服务器」或「集成」设置页面，添加 Streamable HTTP 类型的服务器，填入 `http://localhost:18061/mcp` 即可。
+
+---
+
 ## 启动参数
 
 | 参数 | 默认值 | 说明 |
@@ -177,14 +200,17 @@ Agent 加载 Skills 后，处理数据类请求的默认行为：
 
 ---
 
-## MCP 工具清单（16 个）
+## MCP 工具清单（19 个）
 
 ### 账户与登录
 
 | 工具 | 说明 |
 |------|------|
 | `check_login_status` | 检查典枢登录状态 |
-| `get_login_qrcode` | 获取微信扫码登录二维码（PNG 图片） |
+| `get_login_qrcode` | 获取微信扫码登录二维码（渲染在聊天中） |
+| `wait_login` | 等待扫码完成（配合 get_login_qrcode） |
+| `open_login_browser` | 打开浏览器登录（支持扫码+账号密码） |
+| `set_token` | 手动保存登录 token（浏览器登录备选） |
 | `delete_cookies` | 清除登录态，切换账号 |
 
 ### 订单与下载
@@ -224,7 +250,7 @@ dianshu-mcp/
 ├── main.go                  # 入口
 ├── server.go                # 应用容器
 ├── routes.go                # HTTP 路由
-├── mcp.go                   # MCP 工具注册（16 个工具）
+├── mcp.go                   # MCP 工具注册（19 个工具）
 ├── config/config.go         # 统一配置
 ├── logger/logger.go         # 统一日志
 ├── handler/handler.go       # MCP 处理层

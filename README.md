@@ -4,31 +4,29 @@
 
 MCP server for the [Dianshu Data Platform](https://dianshudata.com) — giving AI Agents full access to dataset trading, including login, order management, encrypted downloads, API calls, and marketplace search.
 
-## For AI Agents
+## Deployment
 
-Users typically provide this GitHub repository link to an AI agent, and the agent installs the MCP server and skills by following one of the flows below.
-
-Two installation options:
-- **Option A (Recommended)**: Download the latest Release zip for your OS and run it
-- **Option B**: Build from source
+Two options:
+- **Option A (Recommended)**: Download the latest Release zip for your OS and run it directly
+- **Option B**: Clone the source and build it yourself
 
 ### Option A (Recommended): Install from Releases
 
-1. Download the latest Release asset (pick one):
+1. Download the latest Release archive (choose your system):
    - macOS Apple Silicon (M1/M2/M3): `macos-arm64.zip`
    - macOS Intel: `macos-amd64.zip`
    - Linux x86_64: `linux-amd64.zip`
    - Linux arm64: `linux-arm64.zip`
    - Windows x86_64: `windows-amd64.zip`
    - Windows arm64: `windows-arm64.zip`
-2. Unzip to get:
+2. After extraction you'll get:
    - Binary: `dianshu-mcp` (Windows: `dianshu-mcp.exe`)
-   - Skills: `skills/`
-3. Install skills: copy `skills/dianshu/` to your agent's skills directory (see “Import Skills”)
-4. Launch the MCP server (see “Launch”)
-5. Configure your agent to connect to MCP (see “Configure MCP”)
+   - Skills directory: `skills/`
+3. Install skills: copy `skills/dianshu/` to your agent's skills directory (see "Import Skills" below)
+4. Launch the MCP server (see "Launch" below)
+5. Configure your agent to connect to MCP (see "Configure MCP" below)
 
-### Option B: Build from source
+### Option B: Build from Source
 
 #### Prerequisites
 - **Go 1.22+** (all platforms)
@@ -42,7 +40,7 @@ go build -o dianshu-mcp .
 
 ### Import Skills
 
-Copy `.skill/dianshu/` to your AI agent's skills directory:
+Copy `.skill/dianshu/` to your agent's skills directory:
 
 | Agent | macOS / Linux | Windows |
 |-------|--------------|---------|
@@ -54,13 +52,17 @@ Copy `.skill/dianshu/` to your AI agent's skills directory:
 |----------|---------|
 | macOS / Linux | `cp -r .skill/dianshu ~/.hermes/skills/` |
 | Windows (PowerShell) | `Copy-Item -Recurse .skill/dianshu $env:USERPROFILE\\.hermes\\skills\\` |
-| Windows (CMD) | `xcopy /E /I .claude\\skills\\dianshu %USERPROFILE%\\.hermes\\skills\\` |
+| Windows (CMD) | `xcopy /E /I .skill\\dianshu %USERPROFILE%\\.hermes\\skills\\` |
 
 Sub-skills are auto-loaded when loading `dianshu` — no separate import needed.
 
 ### Configure MCP
 
 Service listens on `http://localhost:18061/mcp` via Streamable HTTP.
+
+> **Universal config for all agents**: Add an MCP server, choose "Streamable HTTP" transport, and enter `http://localhost:18061/mcp` as the URL.
+
+Agent-specific examples:
 
 **Hermes** (`~/.hermes/config.yaml` or `hermes config set`):
 
@@ -144,7 +146,7 @@ mcp_servers:
 
 ### Get Started
 
-After connecting your agent, say "Log in to Dianshu" to scan the QR code with WeChat. Then use natural language:
+After connecting your agent, say "Log in to Dianshu" to scan the QR code. Then use natural language:
 
 - "Show my purchased data" → list all orders
 - "Download task XXX" → auto-download and decrypt
@@ -153,11 +155,30 @@ After connecting your agent, say "Log in to Dianshu" to scan the QR code with We
 
 ---
 
+## Troubleshooting
+
+### MCP tools not appearing after installation?
+
+Skills and MCP are two independent configurations — missing either will cause failure. Verify each step:
+
+1. **Skills copied?** — Confirm `.skill/dianshu/` was copied to your agent's skills directory
+2. **MCP configured?** — Confirm the MCP config has `http://localhost:18061/mcp` added
+3. **Server running?** — Confirm `dianshu-mcp` is running
+4. **Restart agent** — Some agents require a restart to load new MCP connections
+
+If still not working, manually call the `check_login_status` tool to verify connectivity.
+
+### Don't know which agent you're using?
+
+All major AI coding agents support MCP. Find an "MCP Server" or "Integrations" settings page, add a Streamable HTTP server at `http://localhost:18061/mcp`, and you're done.
+
+---
+
 ## Configuration
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-headless` | `false` | `true` = background mode (no browser popup) |
+| `-headless` | `false` | `true` = background mode (no browser popup); `false` = foreground mode |
 | `-port` | `18061` | HTTP listen port |
 | `-output-dir` | `~/Downloads/dianshu-mcp/` | Override output directory |
 
@@ -174,19 +195,22 @@ When skills are loaded, the agent follows this priority for data requests:
 1. **Check purchased first** — `list_downloads` / `list_purchased_apis`
 2. **Found** → ask user whether to download / call
 3. **Not found** → search marketplace → `search_datasets` / `homepage_recommend`
-4. **Show results + purchase link** → `https://dianshudata.com/dataDetail/{id}` (API products use `/dataAPIDetail/{id}`)
+4. **Show results + purchase link** → `https://dianshudata.com/dataDetail/{id}` (API products: `/dataAPIDetail/{id}`)
 5. **No results** → suggest visiting https://dianshudata.com
 
 ---
 
-## MCP Tools (16)
+## MCP Tools (19)
 
 ### Account & Login
 
 | Tool | Description |
 |------|-------------|
 | `check_login_status` | Check Dianshu login status |
-| `get_login_qrcode` | Get WeChat QR code for login (PNG) |
+| `get_login_qrcode` | Get WeChat QR login image (displays in chat) |
+| `wait_login` | Wait for QR scan completion (use after get_login_qrcode) |
+| `open_login_browser` | Open browser for login (QR + password) |
+| `set_token` | Manually save login token (browser login fallback) |
 | `delete_cookies` | Clear session, switch account |
 
 ### Orders & Downloads
@@ -194,10 +218,10 @@ When skills are loaded, the agent follows this priority for data requests:
 | Tool | Description |
 |------|-------------|
 | `list_orders` | List orders, filter by type / code |
-| `list_downloads` | List purchased downloadable datasets |
+| `list_downloads` | List purchased downloadable data products |
 | `download_order` | Download and decrypt with task code |
 | `list_purchased_apis` | List purchased data APIs |
-| `get_api_detail` | Get API parameter schema |
+| `get_api_detail` | Get API parameter details |
 | `call_api` | Call a purchased API (auto encrypt/decrypt) |
 
 ### Dataset Search
@@ -206,7 +230,7 @@ When skills are loaded, the agent follows this priority for data requests:
 |------|-------------|
 | `search_datasets` | Search Dianshu marketplace by keyword |
 | `dataset_detail` | Get dataset details |
-| `homepage_recommend` | Get homepage recommendations |
+| `homepage_recommend` | Get homepage recommendations (popular / high-rated) |
 | `my_datasets` | Get my published datasets |
 
 ### Profile & Wallet
@@ -226,7 +250,7 @@ dianshu-mcp/
 ├── main.go                  # Entry point
 ├── server.go                # Application container
 ├── routes.go                # HTTP routes
-├── mcp.go                   # MCP tool registration (16 tools)
+├── mcp.go                   # MCP tool registration (19 tools)
 ├── config/config.go         # Unified configuration
 ├── logger/logger.go         # Unified logging
 ├── handler/handler.go       # MCP handler layer

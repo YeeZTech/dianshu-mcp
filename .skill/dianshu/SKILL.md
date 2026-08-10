@@ -36,18 +36,33 @@ metadata:
 
 检查工具列表中是否存在 `check_login_status`：
 - **有** → 继续 §0.2
-- **没有** → 回复：
+- **没有** → 按以下步骤完整部署（不要跳过任何一步）：
 
 ```
-典枢 MCP 服务未连接。请按以下步骤部署：
-
+# 1. 克隆 + 编译
 git clone https://github.com/YeeZTech/dianshu-mcp.git
-cd dianshu-mcp && go build -o dianshu-mcp .
-cp -r .skill/dianshu ~/.hermes/skills/
-./dianshu-mcp -headless=true
+cd dianshu-mcp
+go build -o dianshu-mcp .
 
-详细文档：https://github.com/YeeZTech/dianshu-mcp
+# 2. 导入 Skill（必须）
+# 将 .skill/dianshu 复制到你的 Agent 的 skills 目录
+cp -r .skill/dianshu ~/.hermes/skills/       # Hermes
+cp -r .skill/dianshu .claude/skills/         # Claude Code / Cursor
+# 其他 Agent 请参考其文档
+
+# 3. 配置 MCP（必须）
+# 添加 MCP 服务：Streamable HTTP → http://localhost:18061/mcp
+# Hermes: hermes config set mcp_servers.dianshu-mcp.transport streamable-http
+#         hermes config set mcp_servers.dianshu-mcp.url http://localhost:18061/mcp
+# Claude Code / Cursor: 在 mcp.json 中添加
+#   {"mcpServers": {"dianshu-mcp": {"transport": "streamable-http", "url": "http://localhost:18061/mcp"}}}
+# 其他 Agent 请参考其文档
+
+# 4. 启动
+./dianshu-mcp -headless=true
 ```
+
+然后重新连接，再次检查工具列表。如果仍没有 `check_login_status`，重启 Agent 重试。
 
 ### 0.2 检查登录状态
 
