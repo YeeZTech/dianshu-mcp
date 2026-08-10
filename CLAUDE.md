@@ -36,7 +36,7 @@ dianshu-mcp/
 │   ├── pipeline/            # 下载管线
 │   └── sdk/                 # 数据 API SDK
 ├── output/                  # 输出目录
-└── .claude/skills/          # Agent Skills
+└── .skill/dianshu/  # Agent Skills
 ```
 
 ## MCP 工具清单（16 个）

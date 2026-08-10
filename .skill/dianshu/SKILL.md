@@ -43,7 +43,7 @@ metadata:
 
 git clone https://github.com/YeeZTech/dianshu-mcp.git
 cd dianshu-mcp && go build -o dianshu-mcp .
-cp -r .claude/skills/dianshu ~/.hermes/skills/
+cp -r .skill/dianshu ~/.hermes/skills/
 ./dianshu-mcp -headless=true
 
 详细文档：https://github.com/YeeZTech/dianshu-mcp

@@ -40,7 +40,7 @@ go build -o dianshu-mcp .
 
 ### 导入 Skills
 
-将 `.claude/skills/dianshu/` 复制到对应 Agent 的 skills 目录：
+将 `.skill/dianshu/` 复制到对应 Agent 的 skills 目录：
 
 | Agent | macOS / Linux | Windows |
 |-------|--------------|---------|
@@ -50,9 +50,9 @@ go build -o dianshu-mcp .
 
 | 平台 | 命令 |
 |------|------|
-| macOS / Linux | `cp -r .claude/skills/dianshu ~/.hermes/skills/` |
-| Windows (PowerShell) | `Copy-Item -Recurse .claude/skills/dianshu $env:USERPROFILE\.hermes\skills\` |
-| Windows (CMD) | `xcopy /E /I .claude\skills\dianshu %USERPROFILE%\.hermes\skills\` |
+| macOS / Linux | `cp -r .skill/dianshu ~/.hermes/skills/` |
+| Windows (PowerShell) | `Copy-Item -Recurse .skill/dianshu $env:USERPROFILE\.hermes\skills\` |
+| Windows (CMD) | `xcopy /E /I .skill\\dianshu %USERPROFILE%\\.hermes\\skills\\` |
 
 子 skill 会在加载 `dianshu` 时自动加载，无需单独导入。
 
@@ -242,7 +242,7 @@ dianshu-mcp/
 │   ├── kms/                 # KMS 集成
 │   ├── pipeline/            # 下载管线
 │   └── sdk/                 # 数据 API SDK
-├── .claude/skills/dianshu/  # Agent Skill（主 + 4 子 skill）
+├── .skill/dianshu/  # Agent Skill（主 + 4 子 skill）
 ├── go.mod / go.sum
 └── README.md
 ```

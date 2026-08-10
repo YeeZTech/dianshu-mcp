@@ -42,7 +42,7 @@ go build -o dianshu-mcp .
 
 ### Import Skills
 
-Copy `.claude/skills/dianshu/` to your AI agent's skills directory:
+Copy `.skill/dianshu/` to your AI agent's skills directory:
 
 | Agent | macOS / Linux | Windows |
 |-------|--------------|---------|
@@ -52,8 +52,8 @@ Copy `.claude/skills/dianshu/` to your AI agent's skills directory:
 
 | Platform | Command |
 |----------|---------|
-| macOS / Linux | `cp -r .claude/skills/dianshu ~/.hermes/skills/` |
-| Windows (PowerShell) | `Copy-Item -Recurse .claude/skills/dianshu $env:USERPROFILE\\.hermes\\skills\\` |
+| macOS / Linux | `cp -r .skill/dianshu ~/.hermes/skills/` |
+| Windows (PowerShell) | `Copy-Item -Recurse .skill/dianshu $env:USERPROFILE\\.hermes\\skills\\` |
 | Windows (CMD) | `xcopy /E /I .claude\\skills\\dianshu %USERPROFILE%\\.hermes\\skills\\` |
 
 Sub-skills are auto-loaded when loading `dianshu` — no separate import needed.
@@ -244,7 +244,7 @@ dianshu-mcp/
 │   ├── kms/                 # KMS integration
 │   ├── pipeline/            # Download pipeline
 │   └── sdk/                 # Data API SDK
-├── .claude/skills/dianshu/  # Agent skills (1 main + 4 sub)
+├── .skill/dianshu/  # Agent skills (1 main + 4 sub)
 ├── go.mod / go.sum
 └── README.md
 ```
