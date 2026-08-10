@@ -16,7 +16,7 @@ import (
 
 // NewBrowser 创建一个新的浏览器实例
 func NewBrowser(ctx context.Context, headless bool) (*rod.Browser, error) {
-	l := launcher.New().Headless(headless).NoSandbox(true)
+	l := launcher.New().Headless(headless).NoSandbox(true).Set("lang", "zh-CN")
 
 	// 使用自定义浏览器路径
 	if binPath, ok := launcher.LookPath(); ok && binPath != "" {

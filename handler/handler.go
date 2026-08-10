@@ -13,17 +13,16 @@ import (
 
 // ── 公共类型 / Common types ──────────────────────────────
 
-// App 应用容器，持有业务服务引用和登录并发锁。
+// App 应用容器，持有业务服务引用。
 // App holds shared dependencies for all handlers.
 type App struct {
 	Service Service
-	loginMu *loginGuard
 }
 
 // NewApp 创建一个新的 App 实例。
 // NewApp creates a new App with the given service.
 func NewApp(svc Service) *App {
-	return &App{Service: svc, loginMu: newLoginGuard()}
+	return &App{Service: svc}
 }
 
 // ToolResult MCP 工具统一返回结构。
@@ -39,6 +38,9 @@ type Service interface {
 	// 认证 / Auth
 	CheckLogin() (loggedIn bool, nickname string, err error)
 	GetLoginQRCode() (text string, img []byte, err error)
+	WaitLogin(timeoutSec int) (bool, string, error)
+	OpenLoginBrowser() (string, error)
+	SetToken(token string) error
 	DeleteCookies() error
 	// 订单 / Order
 	ListOrders(orderType int, orderCode string) (string, error)
@@ -136,22 +138,12 @@ func (app *App) CheckLoginStatus(ctx context.Context) *ToolResult {
 	return textResult("已登录，用户: " + nickname)
 }
 
-// GetLoginQRCode 获取微信扫码登录二维码。
+// GetLoginQRCode 获取微信扫码登录二维码（仅返回二维码，不阻塞）。
 // GetLoginQRCode handles the get_login_qrcode MCP tool.
 func (app *App) GetLoginQRCode(ctx context.Context) *ToolResult {
-	if app.loginMu.inProgress() {
-		return textResult("已有登录流程正在进行，请直接在已打开的浏览器窗口中完成扫码。")
-	}
-	app.loginMu.tryLock()
 	t, img, err := app.Service.GetLoginQRCode()
 	if err != nil {
-		app.loginMu.unlock()
 		return errorResultErr(ctx, "get_login_qrcode", "获取登录二维码失败: ", err)
-	}
-	loggedIn, nickname, _ := app.Service.CheckLogin()
-	app.loginMu.unlock()
-	if loggedIn {
-		return textResult("登录成功！当前用户: " + nickname)
 	}
 	return &ToolResult{Content: []mcp.Content{
 		&mcp.TextContent{Text: t},
@@ -159,8 +151,55 @@ func (app *App) GetLoginQRCode(ctx context.Context) *ToolResult {
 	}}
 }
 
+// WaitLoginArgs wait_login 工具参数。
+type WaitLoginArgs struct {
+	Timeout int `json:"timeout,omitempty" jsonschema:"超时秒数，默认 120"`
+}
+
+// WaitLogin 等待扫码登录完成。
+// WaitLogin handles the wait_login MCP tool.
+func (app *App) WaitLogin(ctx context.Context, args WaitLoginArgs) *ToolResult {
+	timeout := args.Timeout
+	if timeout <= 0 {
+		timeout = 120
+	}
+	loggedIn, nickname, err := app.Service.WaitLogin(timeout)
+	if err != nil {
+		return errorResultErr(ctx, "wait_login", "登录失败: ", err)
+	}
+	if loggedIn {
+		return textResult("登录成功！当前用户: " + nickname)
+	}
+	return textResult("登录超时，请重新获取二维码")
+}
+
+// OpenLoginBrowser 打开可见浏览器窗口进行登录（支持扫码+账号密码）。
+func (app *App) OpenLoginBrowser(ctx context.Context) *ToolResult {
+	result, err := app.Service.OpenLoginBrowser()
+	if err != nil {
+		return errorResultErr(ctx, "open_login_browser", "浏览器登录失败: ", err)
+	}
+	return textResult(result)
+}
+
+// SetTokenArgs set_token 工具参数。
+type SetTokenArgs struct {
+	Token string `json:"token" jsonschema:"必需。典枢平台的登录 token（从浏览器 localStorage 或登录回调中获取）"`
+}
+
+// SetToken 手动设置登录 token（浏览器登录后的备选方案）。
+func (app *App) SetToken(ctx context.Context, args SetTokenArgs) *ToolResult {
+	if err := app.Service.SetToken(args.Token); err != nil {
+		return errorResultErr(ctx, "set_token", "设置 token 失败: ", err)
+	}
+	loggedIn, nickname, _ := app.Service.CheckLogin()
+	if loggedIn {
+		return textResult("登录成功！当前用户: " + nickname)
+	}
+	return textResult("token 已保存，请调用 check_login_status 验证")
+}
+
 // DeleteCookies 清除登录状态，切换账号。
-// DeleteCookies handles the delete_cookies MCP tool.
 func (app *App) DeleteCookies(ctx context.Context) *ToolResult {
 	if err := app.Service.DeleteCookies(); err != nil {
 		return errorResultErr(ctx, "delete_cookies", "清除 cookies 失败: ", err)

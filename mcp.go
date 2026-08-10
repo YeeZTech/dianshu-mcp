@@ -35,7 +35,14 @@ func registerTools(srv *mcp.Server, h *handler.App) {
 	// Auth
 	add0(srv, "check_login_status", "检查典枢平台的登录状态", true, false, h.CheckLoginStatus)
 	add0(srv, "get_login_qrcode", "获取微信登录二维码（返回 Base64 图片），用户扫码后登录典枢平台", true, false, h.GetLoginQRCode)
+	add1(srv, "wait_login", "等待用户扫码完成登录。扫码后调用此工具，会轮询检查登录状态直到成功或超时。超时默认 120 秒。", false, func(ctx context.Context, args handler.WaitLoginArgs) *handler.ToolResult {
+		return h.WaitLogin(ctx, args)
+	})
 	add0(srv, "delete_cookies", "删除 cookies 文件，重置登录状态", false, true, h.DeleteCookies)
+	add0(srv, "open_login_browser", "打开可见浏览器窗口进行登录。同时支持微信扫码和账号密码登录，适合无法扫码时使用。调用后浏览器弹窗，用户在浏览器中完成登录即可。", false, false, h.OpenLoginBrowser)
+	add1(srv, "set_token", "手动设置登录 token（浏览器登录后使用）。用户在典枢网站登录后，从浏览器 DevTools → localStorage 复制 token 值，通过此工具保存。", false, func(ctx context.Context, args handler.SetTokenArgs) *handler.ToolResult {
+		return h.SetToken(ctx, args)
+	})
 
 	// Order / Download
 	add1(srv, "list_orders", "查询典枢平台的订单列表，支持按类型和订单编号筛选", true, h.ListOrders)

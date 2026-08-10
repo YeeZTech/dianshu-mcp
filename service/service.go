@@ -5,32 +5,36 @@ package service
 
 import (
 	"context"
-
-	"dianshu-mcp/pkg/sdk"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/go-rod/rod"
 
 	"dianshu-mcp/config"
 	"dianshu-mcp/dianshu"
 	"dianshu-mcp/logger"
 	"dianshu-mcp/pkg/chain"
 	"dianshu-mcp/pkg/pipeline"
+	"dianshu-mcp/pkg/sdk"
 )
 
 // Service implements handler.Service for dianshu-mcp.
 type Service struct {
-	cfg      *config.Config
-	headless bool
+	cfg          *config.Config
+	loginPage    *rod.Page
+	loginBrowser *rod.Browser
+	loginMu      sync.Mutex
 }
 
 // New creates a new Service with the given config.
 func New(cfg *config.Config) *Service {
-	return &Service{cfg: cfg, headless: cfg.Headless}
+	return &Service{cfg: cfg}
 }
 
 // cookies loads persisted cookies from the configured file.
@@ -53,19 +57,105 @@ func (s *Service) CheckLogin() (bool, string, error) {
 // GetLoginQRCode initiates WeChat QR login flow.
 
 func (s *Service) GetLoginQRCode() (string, []byte, error) {
+	s.loginMu.Lock()
 	_ = dianshu.DeleteCookiesFile(s.cfg.CookieFile)
-	allCookies, err := dianshu.WaitForWeChatLogin(context.Background(), s.headless, 120*time.Second)
-	if err != nil {
-		return "登录失败: " + err.Error(), nil, nil
+	if s.loginPage != nil {
+		s.loginPage.Close()
+		s.loginPage = nil
 	}
-	dianshu.SaveCookies(s.cfg.CookieFile, allCookies)
-	user, _ := dianshu.GetUserInfo(context.Background(), allCookies)
+	if s.loginBrowser != nil {
+		s.loginBrowser.Close()
+		s.loginBrowser = nil
+	}
+
+	browser, page, err := dianshu.OpenLoginPage(context.Background(), true)
+	if err != nil {
+		s.loginMu.Unlock()
+		return "", nil, fmt.Errorf("启动浏览器失败: %w", err)
+	}
+	s.loginBrowser = browser
+	s.loginPage = page
+	s.loginMu.Unlock()
+
+	screenshot, err := page.Screenshot(true, nil)
+	if err != nil {
+		s.loginMu.Lock()
+		s.loginPage.Close()
+		s.loginBrowser.Close()
+		s.loginPage = nil
+		s.loginBrowser = nil
+		s.loginMu.Unlock()
+		return "", nil, fmt.Errorf("截图失败: %w", err)
+	}
+
+	text := "请使用微信扫码登录典枢平台\n扫码后调用 wait_login 等待登录完成\n\n🔗 需要账号密码登录？请说「打开浏览器登录」"
+	return text, screenshot, nil
+}
+
+// WaitLogin waits for WeChat QR login to complete and saves cookies.
+func (s *Service) WaitLogin(timeoutSec int) (bool, string, error) {
+	s.loginMu.Lock()
+	page := s.loginPage
+	browser := s.loginBrowser
+	if page == nil || browser == nil {
+		s.loginMu.Unlock()
+		return false, "", fmt.Errorf("没有进行中的登录流程，请先调用 get_login_qrcode")
+	}
+	s.loginMu.Unlock()
+
+	timeout := time.Duration(timeoutSec) * time.Second
+	cookies, err := dianshu.PollLoginPage(page, timeout)
+	if err != nil {
+		s.loginMu.Lock()
+		s.loginPage.Close()
+		s.loginBrowser.Close()
+		s.loginPage = nil
+		s.loginBrowser = nil
+		s.loginMu.Unlock()
+		return false, "", fmt.Errorf("登录失败: %w", err)
+	}
+
+	dianshu.SaveCookies(s.cfg.CookieFile, cookies)
+
+	s.loginMu.Lock()
+	s.loginPage.Close()
+	s.loginBrowser.Close()
+	s.loginPage = nil
+	s.loginBrowser = nil
+	s.loginMu.Unlock()
+
+	user, _ := dianshu.GetUserInfo(context.Background(), cookies)
 	name := ""
 	if user != nil {
 		name = user.Nickname
 	}
-	return "登录成功！当前用户: " + name, nil, nil
-	// DeleteCookies removes persisted authentication cookies.
+	return true, name, nil
+}
+
+// SetToken 手动设置登录 token。
+// SetToken saves a manually provided login token.
+func (s *Service) SetToken(token string) error {
+	cookies := map[string]string{"token": token}
+	return dianshu.SaveCookies(s.cfg.CookieFile, cookies)
+}
+
+// OpenLoginBrowser 模式2：打开可见浏览器窗口，同时支持扫码+账号密码，等待登录完成。
+func (s *Service) OpenLoginBrowser() (string, error) {
+	_ = dianshu.DeleteCookiesFile(s.cfg.CookieFile)
+
+	cookies, err := dianshu.WaitForLogin(context.Background(), false, 180*time.Second)
+	if err != nil {
+		return "", fmt.Errorf("登录失败: %w", err)
+	}
+
+	dianshu.SaveCookies(s.cfg.CookieFile, cookies)
+
+	user, _ := dianshu.GetUserInfo(context.Background(), cookies)
+	name := ""
+	if user != nil {
+		name = user.Nickname
+	}
+	return "登录成功！当前用户: " + name, nil
 }
 
 // DeleteCookies 清除持久化的登录 cookies。

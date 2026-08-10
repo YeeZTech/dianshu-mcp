@@ -10,10 +10,14 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/proto"
 	"github.com/sirupsen/logrus"
 )
 
-// 微信开放平台 QR 码登录 URL（典枢配置）
+// 典枢 SSO 登录页面（同时支持微信扫码和账号密码登录）
+const DianshuSSOLoginURL = "https://sso.dianshudata.com/login/oauth/authorize?client_id=fcdfeb6531b13151851f&response_type=code&redirect_uri=https://account.dianshudata.com/callback/&scope=read&state=https://dianshudata.com/callback"
+
+// 微信开放平台 QR 码登录 URL（旧版，仅扫码无密码）
 const WeChatQRLoginURL = "https://open.weixin.qq.com/connect/qrconnect?appid=wxb99c7869527dc265&redirect_uri=https://sso.dianshudata.com/callback&scope=snsapi_login&response_type=code&state=P2NsaWVudF9pZD1mY2RmZWI2NTMxYjEzMTUxODUxZiZyZXNwb25zZV90eXBlPWNvZGUmcmVkaXJlY3RfdXJpPWh0dHBzJTNBJTJGJTJGYWNjb3VudC5kaWFuc2h1ZGF0YS5jb20lMkZjYWxsYmFjayUyRiZzY29wZT1yZWFkJnN0YXRlPWh0dHBzJTNBJTJGJTJGZGlhbnNodWRhdGEuY29tJTJGY2FsbGJhY2smYXBwbGljYXRpb249ZGlhbnNodSZwcm92aWRlcj1wcm92aWRlcl9sb2dpbl93ZWNoYXQmbWV0aG9kPXNpZ251cA==#wechat_redirect"
 
 // LoginCheckResult 登录检查结果
@@ -179,4 +183,116 @@ func GetLoginQRCodeOnly(ctx context.Context, headless bool) ([]byte, string, err
 	}
 
 	return screenshot, "请使用微信扫描二维码登录典枢平台\n二维码有效期约 5 分钟", nil
+}
+
+// OpenLoginPage 打开微信登录页面并返回浏览器和页面引用（调用方负责管理生命周期）。
+// OpenLoginPage opens the WeChat login page and returns browser + page references.
+func OpenLoginPage(ctx context.Context, headless bool) (*rod.Browser, *rod.Page, error) {
+	browser, err := NewBrowser(ctx, headless)
+	if err != nil {
+		return nil, nil, fmt.Errorf("启动浏览器失败: %w", err)
+	}
+
+	page, err := NewPage(browser)
+	if err != nil {
+		browser.Close()
+		return nil, nil, fmt.Errorf("创建页面失败: %w", err)
+	}
+
+	_ = proto.NetworkSetUserAgentOverride{AcceptLanguage: "zh-CN,zh;q=0.9"}.Call(page)
+	if err := page.Navigate(WeChatQRLoginURL); err != nil {
+		browser.Close()
+		return nil, nil, fmt.Errorf("打开微信二维码页失败: %w", err)
+	}
+	// 设置较大的视口以获取更清晰的二维码截图
+	_ = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{Width: 800, Height: 800, DeviceScaleFactor: 2})
+	time.Sleep(5 * time.Second)
+
+	return browser, page, nil
+}
+
+// PollLoginPage 轮询登录页面直到用户扫码完成，返回 cookies。
+// PollLoginPage polls the login page until user scans QR code.
+func PollLoginPage(page *rod.Page, timeout time.Duration) (map[string]string, error) {
+	startTime := time.Now()
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if time.Since(startTime) > timeout {
+				return nil, fmt.Errorf("登录超时（%v），请重新获取二维码", timeout)
+			}
+
+			urlObj, err := page.Evaluate(&rod.EvalOptions{JS: "() => window.location.href"})
+			if err != nil {
+				continue
+			}
+			urlStr := urlObj.Value.String()
+
+			// 还在 SSO 页面或微信授权页，继续等待
+			if contains(urlStr, "open.weixin.qq.com") || contains(urlStr, "sso.dianshudata.com") {
+				continue
+			}
+
+			// 登录成功，跳转到了典枢站内
+			if contains(urlStr, "dianshudata.com") {
+				time.Sleep(3 * time.Second)
+				return CaptureLoginResult(page, nil)
+			}
+		}
+	}
+}
+
+// CaptureLoginResult 从已登录页面提取 cookies 和 token。
+
+// WaitForLogin 打开可见浏览器，导航到典枢 SSO 登录页，等待用户扫码或密码登录后返回 cookies。
+// WaitForLogin opens a visible browser for login and returns cookies after success.
+func WaitForLogin(ctx context.Context, headless bool, timeout time.Duration) (map[string]string, error) {
+	browser, err := NewBrowser(ctx, headless)
+	if err != nil {
+		return nil, fmt.Errorf("启动浏览器失败: %w", err)
+	}
+	defer browser.Close()
+
+	page, err := NewPage(browser)
+	if err != nil {
+		return nil, fmt.Errorf("创建页面失败: %w", err)
+	}
+	defer page.Close()
+
+	_ = proto.NetworkSetUserAgentOverride{AcceptLanguage: "zh-CN,zh;q=0.9"}.Call(page)
+	if err := page.Navigate(DianshuSSOLoginURL); err != nil {
+		return nil, fmt.Errorf("打开典枢登录页失败: %w", err)
+	}
+	time.Sleep(3 * time.Second)
+
+	return PollLoginPage(page, timeout)
+}
+
+// CaptureLoginResult 从已登录页面提取 cookies 和 token。
+// CaptureLoginResult extracts cookies and token from a logged-in page.
+func CaptureLoginResult(page *rod.Page, _ map[string]string) (map[string]string, error) {
+	cookieMap := make(map[string]string)
+
+	tokenObj, err := page.Evaluate(&rod.EvalOptions{JS: "() => localStorage.getItem('token')"})
+	if err == nil && tokenObj != nil && tokenObj.Value.String() != "" {
+		cookieMap["token"] = tokenObj.Value.String()
+		logrus.Info("从 localStorage 获取到 token")
+	}
+
+	cookies, err := page.Cookies(nil)
+	if err == nil {
+		for _, c := range cookies {
+			cookieMap[c.Name] = c.Value
+		}
+		logrus.Infof("从 page cookies 获取到 %d 个 cookies", len(cookies))
+	}
+
+	if token, ok := cookieMap["token"]; ok && token != "" {
+		return cookieMap, nil
+	}
+
+	return nil, fmt.Errorf("未能获取到登录凭证")
 }
