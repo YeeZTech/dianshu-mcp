@@ -2,6 +2,8 @@
 
 [English](./README.md) | [简体中文](./README_zh.md)
 
+> GitHub: https://github.com/YeeZTech/dianshu-mcp | Gitee: https://gitee.com/YeeZTech/dianshu-mcp
+
 典枢数据平台（dianshudata.com）的 MCP 服务——为 AI Agent 提供典枢平台的完整操作能力，包括登录、订单管理、数据下载、API 调用、数据集搜索等。
 
 ## 部署说明

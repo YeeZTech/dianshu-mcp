@@ -2,6 +2,8 @@
 
 [English](./README.md) | [简体中文](./README_zh.md)
 
+> GitHub: https://github.com/YeeZTech/dianshu-mcp | Gitee: https://gitee.com/YeeZTech/dianshu-mcp
+
 MCP server for the [Dianshu Data Platform](https://dianshudata.com) — giving AI Agents full access to dataset trading, including login, order management, encrypted downloads, API calls, and marketplace search.
 
 ## Deployment
