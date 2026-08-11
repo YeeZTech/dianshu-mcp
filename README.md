@@ -2,7 +2,8 @@
 
 [English](./README.md) | [简体中文](./README_zh.md)
 
-> GitHub: https://github.com/YeeZTech/dianshu-mcp | Gitee: https://gitee.com/YeeZTech/dianshu-mcp
+> - GitHub: https://github.com/YeeZTech/dianshu-mcp
+> - Gitee: https://gitee.com/YeeZTech/dianshu-mcp
 
 MCP server for the [Dianshu Data Platform](https://dianshudata.com) — giving AI Agents full access to dataset trading, including login, order management, encrypted downloads, API calls, and marketplace search.
 
@@ -26,7 +27,11 @@ MCP server for the [Dianshu Data Platform](https://dianshudata.com) — giving A
 Prerequisites: **Go 1.22+** (all platforms), **Git**
 
 ```bash
+# Clone from GitHub
 git clone https://github.com/YeeZTech/dianshu-mcp.git
+# Or Clone from Gitee
+git clone https://gitee.com/YeeZTech/dianshu-mcp.git
+
 cd dianshu-mcp
 go build -o dianshu-mcp .
 ```
