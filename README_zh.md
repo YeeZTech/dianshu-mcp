@@ -6,10 +6,6 @@
 
 ## 部署说明
 
-提供两种方式：
-- **方式一（推荐）**：从 GitHub Releases 下载对应系统的 zip，直接运行
-- **方式二**：拉取源码并自行编译
-
 ### 方式一（推荐）：从 Releases 安装
 
 1. 下载最新 Release 的压缩包（根据系统选择）：
@@ -22,15 +18,10 @@
 2. 解压后会得到：
    - 可执行文件：`dianshu-mcp`（Windows 为 `dianshu-mcp.exe`）
    - skills 目录：`skills/`
-3. 安装 skills：将 `skills/dianshu/` 复制到对应 Agent 的 skills 目录（见下文「导入 Skills」）
-4. 启动 MCP 服务（见下文「启动服务」）
-5. 配置 Agent 连接 MCP（见下文「配置 MCP 连接」）
 
 ### 方式二：源码编译安装
 
-#### 前提条件
-- **Go 1.22+**（所有平台）
-- **Git**
+前提条件：**Go 1.22+**（所有平台）、**Git**
 
 ```bash
 git clone https://github.com/YeeZTech/dianshu-mcp.git
@@ -38,43 +29,44 @@ cd dianshu-mcp
 go build -o dianshu-mcp .
 ```
 
-### 导入 Skills
+### 启动服务
 
-将 `.skill/dianshu/` 复制到对应 Agent 的 skills 目录：
+```bash
+./dianshu-mcp -headless=true
+```
 
-| Agent | macOS / Linux | Windows |
-|-------|--------------|---------|
-| Hermes | `~/.hermes/skills/` | `%USERPROFILE%\\.hermes\\skills\\` |
-| Claude Code | `.claude/skills/` | `.claude\\skills\\` |
-| Cursor | `.cursor/skills/` | `.cursor\\skills\\` |
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `-headless` | `false` | `true` = 后台模式（不弹浏览器）；`false` = 前台模式 |
+| `-port` | `18061` | HTTP 服务端口 |
+| `-output-dir` | `~/Downloads/dianshu-mcp/` | 自定义输出根目录 |
 
-| 平台 | 命令 |
-|------|------|
-| macOS / Linux | `cp -r .skill/dianshu ~/.hermes/skills/` |
-| Windows (PowerShell) | `Copy-Item -Recurse .skill/dianshu $env:USERPROFILE\\.hermes\\skills\\` |
-| Windows (CMD) | `xcopy /E /I .skill\\dianshu %USERPROFILE%\\.hermes\\skills\\` |
+输出目录：
+- 数据文件：`~/Downloads/dianshu-mcp/downloads/`
+- API 结果：`~/Downloads/dianshu-mcp/api-data/`
 
-子 skill 会在加载 `dianshu` 时自动加载，无需单独导入。
+### 导入 Skills & 配置 MCP
 
-### 配置 MCP 连接
+将 `.skill/dianshu/` 复制到对应 Agent 的 skills 目录，然后配置 MCP 连接。两步都必须完成。
 
-服务默认监听 `http://localhost:18061/mcp`，使用 Streamable HTTP 传输。
+#### Hermes
 
-> **适用所有 Agent 的通用配置**：添加一个 MCP 服务器，传输方式选「Streamable HTTP」，地址填 `http://localhost:18061/mcp`。
+**导入 Skills：** `cp -r .skill/dianshu ~/.hermes/skills/`
 
-各 Agent 具体配置方法：
-
-**Hermes**（`~/.hermes/config.yaml` 或 `hermes config set`）：
-
+**配置 MCP（`~/.hermes/config.yaml`）：**
 ```yaml
 mcp_servers:
   dianshu-mcp:
     transport: streamable-http
     url: http://localhost:18061/mcp
 ```
+或通过命令：`hermes config set mcp_servers.dianshu-mcp.transport streamable-http` 和 `hermes config set mcp_servers.dianshu-mcp.url http://localhost:18061/mcp`
 
-**Claude Code**（`.claude/settings.json`）：
+#### Claude Code
 
+**导入 Skills：** `cp -r .skill/dianshu .claude/skills/`
+
+**配置 MCP（`.claude/settings.json`）：**
 ```json
 {
   "mcpServers": {
@@ -85,9 +77,13 @@ mcp_servers:
   }
 }
 ```
+> ⚠️ Claude Code 使用 `"type"` 字段，非 `"transport"`。
 
-**Cursor**（`.cursor/mcp.json`）：
+#### Cursor
 
+**导入 Skills：** `cp -r .skill/dianshu .cursor/skills/`
+
+**配置 MCP（`.cursor/mcp.json`）：**
 ```json
 {
   "mcpServers": {
@@ -99,8 +95,11 @@ mcp_servers:
 }
 ```
 
-**Augment Code**（`.augment/mcp.json`）：
+#### Trae / Trae Solo
 
+**导入 Skills：** `cp -r .skill/dianshu .trae/skills/`
+
+**配置 MCP：** 打开设置 → MCP → 手动添加，或编辑 `.trae/mcp.json`：
 ```json
 {
   "mcpServers": {
@@ -112,8 +111,11 @@ mcp_servers:
 }
 ```
 
-**Windsurf**（`.windsurf/mcp.json`）：
+#### WorkBuddy
 
+**导入 Skills：** `cp -r .skill/dianshu .workbuddy/skills/`
+
+**配置 MCP：** 点击侧栏 CodeBuddy Settings → MCP → Add MCP，在 JSON 中添加，或编辑 `.workbuddy/mcp.json`：
 ```json
 {
   "mcpServers": {
@@ -125,8 +127,11 @@ mcp_servers:
 }
 ```
 
-**VS Code / Cline**（`mcp.json`）：
+#### Augment Code
 
+**导入 Skills：** `cp -r .skill/dianshu .augment/skills/`
+
+**配置 MCP（`.augment/mcp.json`）：**
 ```json
 {
   "mcpServers": {
@@ -138,10 +143,52 @@ mcp_servers:
 }
 ```
 
-### 启动服务
+#### Windsurf
 
-```bash
-./dianshu-mcp -headless=true
+**导入 Skills：** `cp -r .skill/dianshu .windsurf/skills/`
+
+**配置 MCP（`.windsurf/mcp.json`）：**
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "transport": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
+```
+
+#### 通义灵码
+
+**导入 Skills：** `cp -r .skill/dianshu .tongyi/skills/`
+
+**配置 MCP：** 右上角头像 → 个人设置 → MCP 服务 → + → 手工添加（SSE 类型，填名称和 `http://localhost:18061/mcp`），或编辑 `.tongyi/mcp.json`：
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "transport": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
+```
+
+#### VS Code / Cline
+
+**导入 Skills：** `cp -r .skill/dianshu .vscode/skills/`
+
+**配置 MCP（项目根目录 `mcp.json` 或 Cline 扩展设置）：**
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "transport": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
 ```
 
 ### 开始使用
@@ -159,44 +206,14 @@ Agent 连接成功后，说「登录典枢」即可扫码登录。之后可用�
 
 ### 安装后 Agent 没有加载到 MCP 工具？
 
-这是因为 **Skills 和 MCP 是两个独立的配置**，漏了任何一个都会失败。请逐一确认：
+Skills 和 MCP 是两个独立配置，漏了任何一个都会失败。逐一确认：
 
-1. **Skills 已复制？** — 确认 `.skill/dianshu/` 已复制到 Agent 的 skills 目录
-2. **MCP 已配置？** — 确认 MCP 配置文件中已添加 `http://localhost:18061/mcp`
-3. **服务已启动？** — 确认 `dianshu-mcp` 正在运行
-4. **重启 Agent** — 部分 Agent 需要重启才能加载新的 MCP 连接
+1. Skills 已复制到 Agent 的 skills 目录？
+2. MCP 配置文件中已添加 `http://localhost:18061/mcp`？
+3. `dianshu-mcp` 服务正在运行？
+4. 重启 Agent
 
-如果仍不行，手动调用 `check_login_status` 工具验证连接。
-
-### 不知道用哪个 Agent？
-
-所有主流 AI 编程 Agent 都支持 MCP 协议，配置方式大同小异——找到一个「MCP 服务器」或「集成」设置页面，添加 Streamable HTTP 类型的服务器，填入 `http://localhost:18061/mcp` 即可。
-
----
-
-## 启动参数
-
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `-headless` | `false` | `true` = 后台模式（不弹浏览器）；`false` = 前台模式 |
-| `-port` | `18061` | HTTP 服务端口 |
-| `-output-dir` | `~/Downloads/dianshu-mcp/` | 自定义输出根目录 |
-
-输出目录：
-- 数据文件：`~/Downloads/dianshu-mcp/downloads/`
-- API 结果：`~/Downloads/dianshu-mcp/api-data/`
-
----
-
-## 数据来源优先级
-
-Agent 加载 Skills 后，处理数据类请求的默认行为：
-
-1. **优先查已购数据** — `list_downloads` / `list_purchased_apis`
-2. **找到则提示使用** — 询问用户是否下载 / 调用
-3. **未找到则搜市场** — `search_datasets` / `homepage_recommend`
-4. **展示结果 + 购买链接** — 典枢详情页 `https://dianshudata.com/dataDetail/{id}`（API 产品为 `/dataAPIDetail/{id}`）
-5. **无结果** — 建议访问 https://dianshudata.com 浏览
+仍不行则手动调用 `check_login_status` 验证连接。
 
 ---
 

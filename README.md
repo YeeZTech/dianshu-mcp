@@ -6,10 +6,6 @@ MCP server for the [Dianshu Data Platform](https://dianshudata.com) — giving A
 
 ## Deployment
 
-Two options:
-- **Option A (Recommended)**: Download the latest Release zip for your OS and run it directly
-- **Option B**: Clone the source and build it yourself
-
 ### Option A (Recommended): Install from Releases
 
 1. Download the latest Release archive (choose your system):
@@ -22,15 +18,10 @@ Two options:
 2. After extraction you'll get:
    - Binary: `dianshu-mcp` (Windows: `dianshu-mcp.exe`)
    - Skills directory: `skills/`
-3. Install skills: copy `skills/dianshu/` to your agent's skills directory (see "Import Skills" below)
-4. Launch the MCP server (see "Launch" below)
-5. Configure your agent to connect to MCP (see "Configure MCP" below)
 
 ### Option B: Build from Source
 
-#### Prerequisites
-- **Go 1.22+** (all platforms)
-- **Git**
+Prerequisites: **Go 1.22+** (all platforms), **Git**
 
 ```bash
 git clone https://github.com/YeeZTech/dianshu-mcp.git
@@ -38,43 +29,44 @@ cd dianshu-mcp
 go build -o dianshu-mcp .
 ```
 
-### Import Skills
+### Launch
 
-Copy `.skill/dianshu/` to your agent's skills directory:
+```bash
+./dianshu-mcp -headless=true
+```
 
-| Agent | macOS / Linux | Windows |
-|-------|--------------|---------|
-| Hermes | `~/.hermes/skills/` | `%USERPROFILE%\\.hermes\\skills\\` |
-| Claude Code | `.claude/skills/` | `.claude\\skills\\` |
-| Cursor | `.cursor/skills/` | `.cursor\\skills\\` |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-headless` | `false` | `true` = background mode (no browser popup); `false` = foreground mode |
+| `-port` | `18061` | HTTP listen port |
+| `-output-dir` | `~/Downloads/dianshu-mcp/` | Override output directory |
 
-| Platform | Command |
-|----------|---------|
-| macOS / Linux | `cp -r .skill/dianshu ~/.hermes/skills/` |
-| Windows (PowerShell) | `Copy-Item -Recurse .skill/dianshu $env:USERPROFILE\\.hermes\\skills\\` |
-| Windows (CMD) | `xcopy /E /I .skill\\dianshu %USERPROFILE%\\.hermes\\skills\\` |
+Output paths:
+- Downloaded files → `~/Downloads/dianshu-mcp/downloads/`
+- API results → `~/Downloads/dianshu-mcp/api-data/`
 
-Sub-skills are auto-loaded when loading `dianshu` — no separate import needed.
+### Import Skills & Configure MCP
 
-### Configure MCP
+Copy `.skill/dianshu/` to your agent's skills directory, then configure the MCP connection. Both steps are required.
 
-Service listens on `http://localhost:18061/mcp` via Streamable HTTP.
+#### Hermes
 
-> **Universal config for all agents**: Add an MCP server, choose "Streamable HTTP" transport, and enter `http://localhost:18061/mcp` as the URL.
+**Import Skills:** `cp -r .skill/dianshu ~/.hermes/skills/`
 
-Agent-specific examples:
-
-**Hermes** (`~/.hermes/config.yaml` or `hermes config set`):
-
+**Configure MCP (`~/.hermes/config.yaml`):**
 ```yaml
 mcp_servers:
   dianshu-mcp:
     transport: streamable-http
     url: http://localhost:18061/mcp
 ```
+Or via CLI: `hermes config set mcp_servers.dianshu-mcp.transport streamable-http` and `hermes config set mcp_servers.dianshu-mcp.url http://localhost:18061/mcp`
 
-**Claude Code** (`.claude/settings.json`):
+#### Claude Code
 
+**Import Skills:** `cp -r .skill/dianshu .claude/skills/`
+
+**Configure MCP (`.claude/settings.json`):**
 ```json
 {
   "mcpServers": {
@@ -85,9 +77,13 @@ mcp_servers:
   }
 }
 ```
+> ⚠️ Claude Code uses `"type"` instead of `"transport"`.
 
-**Cursor** (`.cursor/mcp.json`):
+#### Cursor
 
+**Import Skills:** `cp -r .skill/dianshu .cursor/skills/`
+
+**Configure MCP (`.cursor/mcp.json`):**
 ```json
 {
   "mcpServers": {
@@ -99,8 +95,11 @@ mcp_servers:
 }
 ```
 
-**Augment Code** (`.augment/mcp.json`):
+#### Trae / Trae Solo
 
+**Import Skills:** `cp -r .skill/dianshu .trae/skills/`
+
+**Configure MCP:** Open Settings → MCP → Manual Add, or edit `.trae/mcp.json`:
 ```json
 {
   "mcpServers": {
@@ -112,8 +111,11 @@ mcp_servers:
 }
 ```
 
-**Windsurf** (`.windsurf/mcp.json`):
+#### WorkBuddy
 
+**Import Skills:** `cp -r .skill/dianshu .workbuddy/skills/`
+
+**Configure MCP:** Click CodeBuddy Settings in sidebar → MCP → Add MCP, add JSON, or edit `.workbuddy/mcp.json`:
 ```json
 {
   "mcpServers": {
@@ -125,8 +127,11 @@ mcp_servers:
 }
 ```
 
-**VS Code / Cline** (`mcp.json`):
+#### Augment Code
 
+**Import Skills:** `cp -r .skill/dianshu .augment/skills/`
+
+**Configure MCP (`.augment/mcp.json`):**
 ```json
 {
   "mcpServers": {
@@ -138,10 +143,52 @@ mcp_servers:
 }
 ```
 
-### Launch
+#### Windsurf
 
-```bash
-./dianshu-mcp -headless=true
+**Import Skills:** `cp -r .skill/dianshu .windsurf/skills/`
+
+**Configure MCP (`.windsurf/mcp.json`):**
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "transport": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
+```
+
+#### Tongyi Lingma
+
+**Import Skills:** `cp -r .skill/dianshu .tongyi/skills/`
+
+**Configure MCP:** Avatar → Personal Settings → MCP → + → Manual Add (SSE type, enter name + `http://localhost:18061/mcp`), or edit `.tongyi/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "transport": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
+```
+
+#### VS Code / Cline
+
+**Import Skills:** `cp -r .skill/dianshu .vscode/skills/`
+
+**Configure MCP (project root `mcp.json` or Cline extension settings):**
+```json
+{
+  "mcpServers": {
+    "dianshu-mcp": {
+      "transport": "streamable-http",
+      "url": "http://localhost:18061/mcp"
+    }
+  }
+}
 ```
 
 ### Get Started
@@ -159,44 +206,14 @@ After connecting your agent, say "Log in to Dianshu" to scan the QR code. Then u
 
 ### MCP tools not appearing after installation?
 
-Skills and MCP are two independent configurations — missing either will cause failure. Verify each step:
+Skills and MCP are two independent configurations — missing either causes failure:
 
-1. **Skills copied?** — Confirm `.skill/dianshu/` was copied to your agent's skills directory
-2. **MCP configured?** — Confirm the MCP config has `http://localhost:18061/mcp` added
-3. **Server running?** — Confirm `dianshu-mcp` is running
-4. **Restart agent** — Some agents require a restart to load new MCP connections
+1. Skills copied to agent's skills directory?
+2. MCP config has `http://localhost:18061/mcp`?
+3. `dianshu-mcp` server running?
+4. Restart agent
 
-If still not working, manually call the `check_login_status` tool to verify connectivity.
-
-### Don't know which agent you're using?
-
-All major AI coding agents support MCP. Find an "MCP Server" or "Integrations" settings page, add a Streamable HTTP server at `http://localhost:18061/mcp`, and you're done.
-
----
-
-## Configuration
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-headless` | `false` | `true` = background mode (no browser popup); `false` = foreground mode |
-| `-port` | `18061` | HTTP listen port |
-| `-output-dir` | `~/Downloads/dianshu-mcp/` | Override output directory |
-
-Output paths:
-- Downloaded files → `~/Downloads/dianshu-mcp/downloads/`
-- API results → `~/Downloads/dianshu-mcp/api-data/`
-
----
-
-## Data Priority
-
-When skills are loaded, the agent follows this priority for data requests:
-
-1. **Check purchased first** — `list_downloads` / `list_purchased_apis`
-2. **Found** → ask user whether to download / call
-3. **Not found** → search marketplace → `search_datasets` / `homepage_recommend`
-4. **Show results + purchase link** → `https://dianshudata.com/dataDetail/{id}` (API products: `/dataAPIDetail/{id}`)
-5. **No results** → suggest visiting https://dianshudata.com
+If still not working, call `check_login_status` manually to verify.
 
 ---
 
