@@ -21,6 +21,8 @@ type Config struct {
 	SentryDSN         string
 	SentryEnvironment string
 	SentryRelease     string
+	MatomoEndpoint    string
+	MatomoSiteID      string
 
 	// Dianshu API
 	BaseAPIURL     string
@@ -50,6 +52,8 @@ func DefaultConfig() *Config {
 		SentryDSN:              "",
 		SentryEnvironment:      "local",
 		SentryRelease:          "",
+		MatomoEndpoint:         "",
+		MatomoSiteID:           "",
 		BaseAPIURL:             "https://api.dianshudata.com",
 		DataAPIGateway:         "https://data-api.dianshudata.com",
 		DownloadCDN:            "https://d.dianshudata.com",
@@ -70,6 +74,8 @@ func ParseFlags() *Config {
 	flag.IntVar(&cfg.Port, "port", cfg.Port, "HTTP server port")
 	flag.BoolVar(&cfg.Headless, "headless", cfg.Headless, "Run browser in headless mode")
 	flag.StringVar(&cfg.SentryDSN, "sentry-dsn", cfg.SentryDSN, "Sentry DSN")
+	flag.StringVar(&cfg.MatomoEndpoint, "matomo-endpoint", cfg.MatomoEndpoint, "Matomo endpoint URL")
+	flag.StringVar(&cfg.MatomoSiteID, "matomo-site-id", cfg.MatomoSiteID, "Matomo site ID")
 	flag.StringVar(&cfg.SentryEnvironment, "sentry-env", cfg.SentryEnvironment, "Sentry environment")
 	flag.StringVar(&cfg.SentryRelease, "sentry-release", cfg.SentryRelease, "Sentry release")
 	flag.StringVar(&cfg.BaseAPIURL, "api-url", cfg.BaseAPIURL, "Dianshu API base URL")
@@ -95,6 +101,12 @@ func ParseFlags() *Config {
 	}
 	if v := os.Getenv("DS_SENTRY_RELEASE"); v != "" {
 		cfg.SentryRelease = v
+	}
+	if v := os.Getenv("DS_MATOMO_ENDPOINT"); v != "" {
+		cfg.MatomoEndpoint = v
+	}
+	if v := os.Getenv("DS_MATOMO_SITE_ID"); v != "" {
+		cfg.MatomoSiteID = v
 	}
 
 	return cfg

@@ -8,6 +8,7 @@ import (
 	"dianshu-mcp/config"
 	"dianshu-mcp/handler"
 	"dianshu-mcp/logger"
+	"dianshu-mcp/pkg/matomo"
 	"dianshu-mcp/pkg/observability"
 	"dianshu-mcp/service"
 	"time"
@@ -19,6 +20,7 @@ import (
 func main() {
 	cfg := config.ParseFlags()
 	observability.ApplySentryDefaults(cfg)
+	matomo.ApplyDefaults(cfg)
 
 	logger.Info("dianshu-mcp starting", "port", cfg.Port, "headless", cfg.Headless)
 
@@ -27,7 +29,7 @@ func main() {
 	}
 
 	svc := service.New(cfg)
-	h := handler.NewApp(svc)
+	h := handler.NewApp(svc, svc.Matomo())
 
 	srv := newServer(h)
 	if err := srv.start(cfg); err != nil {

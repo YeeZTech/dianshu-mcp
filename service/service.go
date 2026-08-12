@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"dianshu-mcp/dianshu"
 	"dianshu-mcp/logger"
 	"dianshu-mcp/pkg/chain"
+	"dianshu-mcp/pkg/matomo"
 	"dianshu-mcp/pkg/pipeline"
 	"dianshu-mcp/pkg/sdk"
 )
@@ -30,11 +32,21 @@ type Service struct {
 	loginPage    *rod.Page
 	loginBrowser *rod.Browser
 	loginMu      sync.Mutex
+	matomo       *matomo.Client
 }
 
 // New creates a new Service with the given config.
 func New(cfg *config.Config) *Service {
-	return &Service{cfg: cfg}
+	s := &Service{cfg: cfg}
+	if cfg.MatomoEndpoint != "" && cfg.MatomoSiteID != "" {
+		s.matomo = matomo.New(cfg.MatomoEndpoint, cfg.MatomoSiteID)
+	}
+	return s
+}
+
+// Matomo 返回 Matomo 上报客户端（可能为 nil）。
+func (s *Service) Matomo() *matomo.Client {
+	return s.matomo
 }
 
 // cookies loads persisted cookies from the configured file.
@@ -45,13 +57,17 @@ func (s *Service) cookies() map[string]string {
 
 // ── Auth ─────────────────────────────────────────────────
 
-func (s *Service) CheckLogin() (bool, string, error) {
+func (s *Service) CheckLogin() (bool, string, string, error) {
 	all := s.cookies()
 	r, err := dianshu.CheckLoginStatus(context.Background(), all)
 	if err != nil {
-		return false, "", err
+		return false, "", "", err
 	}
-	return r.IsLogin, r.Nickname, nil
+	var userID string
+	if r.UserInfo != nil {
+		userID = strconv.FormatInt(r.UserInfo.ID, 10)
+	}
+	return r.IsLogin, r.Nickname, userID, nil
 }
 
 // GetLoginQRCode initiates WeChat QR login flow.

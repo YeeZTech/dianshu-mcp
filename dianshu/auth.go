@@ -218,31 +218,29 @@ func PollLoginPage(page *rod.Page, timeout time.Duration) (map[string]string, er
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			if time.Since(startTime) > timeout {
-				return nil, fmt.Errorf("登录超时（%v），请重新获取二维码", timeout)
-			}
+	for range ticker.C {
+		if time.Since(startTime) > timeout {
+			return nil, fmt.Errorf("登录超时（%v），请重新获取二维码", timeout)
+		}
 
-			urlObj, err := page.Evaluate(&rod.EvalOptions{JS: "() => window.location.href"})
-			if err != nil {
-				continue
-			}
-			urlStr := urlObj.Value.String()
+		urlObj, err := page.Evaluate(&rod.EvalOptions{JS: "() => window.location.href"})
+		if err != nil {
+			continue
+		}
+		urlStr := urlObj.Value.String()
 
-			// 还在 SSO 页面或微信授权页，继续等待
-			if contains(urlStr, "open.weixin.qq.com") || contains(urlStr, "sso.dianshudata.com") {
-				continue
-			}
+		// 还在 SSO 页面或微信授权页，继续等待
+		if contains(urlStr, "open.weixin.qq.com") || contains(urlStr, "sso.dianshudata.com") {
+			continue
+		}
 
-			// 登录成功，跳转到了典枢站内
-			if contains(urlStr, "dianshudata.com") {
-				time.Sleep(3 * time.Second)
-				return CaptureLoginResult(page, nil)
-			}
+		// 登录成功，跳转到了典枢站内
+		if contains(urlStr, "dianshudata.com") {
+			time.Sleep(3 * time.Second)
+			return CaptureLoginResult(page, nil)
 		}
 	}
+	return nil, fmt.Errorf("登录轮询异常退出")
 }
 
 // CaptureLoginResult 从已登录页面提取 cookies 和 token。

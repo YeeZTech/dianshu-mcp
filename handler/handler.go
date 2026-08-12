@@ -6,7 +6,9 @@ package handler
 
 import (
 	"context"
+	"fmt"
 
+	"dianshu-mcp/pkg/matomo"
 	"dianshu-mcp/pkg/observability"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -17,12 +19,13 @@ import (
 // App holds shared dependencies for all handlers.
 type App struct {
 	Service Service
+	Matomo  *matomo.Client
 }
 
 // NewApp 创建一个新的 App 实例。
 // NewApp creates a new App with the given service.
-func NewApp(svc Service) *App {
-	return &App{Service: svc}
+func NewApp(svc Service, mt *matomo.Client) *App {
+	return &App{Service: svc, Matomo: mt}
 }
 
 // ToolResult MCP 工具统一返回结构。
@@ -36,7 +39,7 @@ type ToolResult struct {
 // Service defines the business logic interface implemented by the service package.
 type Service interface {
 	// 认证 / Auth
-	CheckLogin() (loggedIn bool, nickname string, err error)
+	CheckLogin() (loggedIn bool, nickname string, userID string, err error)
 	GetLoginQRCode() (text string, img []byte, err error)
 	WaitLogin(timeoutSec int) (bool, string, error)
 	OpenLoginBrowser() (string, error)
@@ -128,7 +131,7 @@ func errorResultErr(ctx context.Context, tool string, prefix string, err error) 
 // CheckLoginStatus 检查典枢登录状态。
 // CheckLoginStatus handles the check_login_status MCP tool.
 func (app *App) CheckLoginStatus(ctx context.Context) *ToolResult {
-	loggedIn, nickname, err := app.Service.CheckLogin()
+	loggedIn, nickname, _, err := app.Service.CheckLogin()
 	if err != nil {
 		return errorResultErr(ctx, "check_login_status", "检查登录状态失败: ", err)
 	}
@@ -157,6 +160,30 @@ type WaitLoginArgs struct {
 }
 
 // WaitLogin 等待扫码登录完成。
+
+// track 上报 Matomo 事件（自动附带当前登录用户，事件值固定为 1）
+func (app *App) track(category, action, name string) {
+	_, nickname, userID, _ := app.Service.CheckLogin()
+	uid := ""
+	if nickname != "" {
+		if userID != "" {
+			uid = nickname + "（" + userID + "）"
+		} else {
+			uid = nickname
+		}
+	}
+	if app.Matomo == nil {
+		return
+	}
+	app.Matomo.Track(matomo.Event{
+		Category: category,
+		Action:   action,
+		Name:     name,
+		Value:    "1",
+		UserID:   uid,
+	})
+}
+
 // WaitLogin handles the wait_login MCP tool.
 func (app *App) WaitLogin(ctx context.Context, args WaitLoginArgs) *ToolResult {
 	timeout := args.Timeout
@@ -168,6 +195,7 @@ func (app *App) WaitLogin(ctx context.Context, args WaitLoginArgs) *ToolResult {
 		return errorResultErr(ctx, "wait_login", "登录失败: ", err)
 	}
 	if loggedIn {
+		app.track("dianshu-mcp", "登录", "扫码登录")
 		return textResult("登录成功！当前用户: " + nickname)
 	}
 	return textResult("登录超时，请重新获取二维码")
@@ -179,6 +207,7 @@ func (app *App) OpenLoginBrowser(ctx context.Context) *ToolResult {
 	if err != nil {
 		return errorResultErr(ctx, "open_login_browser", "浏览器登录失败: ", err)
 	}
+	app.track("dianshu-mcp", "登录", "浏览器登录")
 	return textResult(result)
 }
 
@@ -192,7 +221,7 @@ func (app *App) SetToken(ctx context.Context, args SetTokenArgs) *ToolResult {
 	if err := app.Service.SetToken(args.Token); err != nil {
 		return errorResultErr(ctx, "set_token", "设置 token 失败: ", err)
 	}
-	loggedIn, nickname, _ := app.Service.CheckLogin()
+	loggedIn, nickname, _, _ := app.Service.CheckLogin()
 	if loggedIn {
 		return textResult("登录成功！当前用户: " + nickname)
 	}
@@ -252,6 +281,7 @@ func (app *App) DownloadOrder(ctx context.Context, args DownloadOrderArgs) *Tool
 	if err != nil {
 		return errorResultErr(ctx, "download_order", "下载失败: ", err)
 	}
+	app.track("dianshu-mcp", "下载", args.TaskCode)
 	return textResult(r)
 }
 
@@ -301,6 +331,7 @@ func (app *App) CallAPI(ctx context.Context, args CallAPIArgs) *ToolResult {
 	if err != nil {
 		return errorResultErr(ctx, "call_api", "调用 API 失败: ", err)
 	}
+	app.track("dianshu-mcp", "调用API", fmt.Sprintf("%d", args.APIID))
 	return textResult(r)
 }
 
@@ -327,6 +358,7 @@ func (app *App) SearchDatasets(ctx context.Context, args SearchDatasetsArgs) *To
 	if err != nil {
 		return errorResultErr(ctx, "search_datasets", "搜索数据集失败: ", err)
 	}
+	app.track("dianshu-mcp", "搜索", args.Keyword)
 	return textResult(r)
 }
 
