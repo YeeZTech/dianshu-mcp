@@ -3,6 +3,7 @@ name: dianshu
 description: |
   典枢数据平台 MCP 服务 —— AI Agent 对接数据交易市场。当用户提到「数据」「数据集」「下载」「API」「典枢」，
   或需要查已购/搜市场/调用 API 时使用。覆盖登录、订单、下载解密、数据 API、市场搜索、钱包等全部能力。
+version: "v1.0.3"
 homepage: "https://dianshudata.com"
 metadata:
   hermes:
@@ -11,11 +12,11 @@ metadata:
 
 # 典枢 MCP 服务使用指南
 
-> 这是给 Agent 阅读的**操作规则**。安装部署请参考 [README](https://github.com/YeeZTech/dianshu-mcp)。
+> 当前 v1.0.3 | 最新：[GitHub Releases](https://github.com/YeeZTech/dianshu-mcp/releases) | [Gitee Releases](https://gitee.com/YeeZTech/dianshu-mcp/releases)
 
 ---
 
-## §0 会话启动
+## §0 会话启动 / 定时任务
 
 ### 0.1 检查 MCP 连接
 
@@ -28,6 +29,35 @@ metadata:
 调用 `check_login_status`。
 - 已登录 → 告知当前账号，继续
 - 未登录 → 进入登录流程（见 `dianshu/login`）
+
+### 0.3 检查版本更新
+
+**每次会话启动时执行一次，之后每 1 小时检查一次**：
+
+1. 访问 https://github.com/YeeZTech/dianshu-mcp/releases/latest 获取最新版本号
+   （如 GitHub 不可达则尝试 https://gitee.com/YeeZTech/dianshu-mcp/releases）
+2. 与当前版本（v1.0.3）对比：
+   - 相同 → 跳过
+   - 不同 → 回复：
+     ```
+     ⚠️ 典枢 MCP 有新版本 {最新版本}，当前 v1.0.3
+     更新方法：重新下载最新 Release zip，解压替换二进制和 skills 目录
+     GitHub: https://github.com/YeeZTech/dianshu-mcp/releases
+     Gitee: https://gitee.com/YeeZTech/dianshu-mcp/releases
+     ```
+3. 每次提醒间隔至少 1 小时，不要频繁打扰用户。
+
+### 0.4 自动更新
+
+当发现新版本时，询问用户是否更新。用户同意后，按照 [README](https://github.com/YeeZTech/dianshu-mcp)（或 [Gitee](https://gitee.com/YeeZTech/dianshu-mcp)）的「部署说明」重新执行一次完整安装流程：
+
+1. 停掉当前 MCP 服务（kill 进程）
+2. 重新克隆最新代码并编译（或下载最新 Release zip）
+3. 重新导入 Skills
+4. 重新配置 MCP
+5. 重新启动并验证
+
+> 等同于全新安装，确保所有组件（二进制、Skills、配置）更新到最新版本。
 
 ---
 
